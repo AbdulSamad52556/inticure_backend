@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Email Template</title>
+	<style>
+		body {
+			background-color:LightGray ;
+		}
+		
+		.container {
+			max-width: 700px; /* width of an A4 size paper */
+			margin: 0 auto;
+			padding: 0;
+			box-sizing: border-box;
+			background-color: white;
+			border-radius: 8px;
+			overflow: hidden;
+			box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+		}
+
+		/* Style for the header */
+		.header {
+			background: #8F619D;
+			color: white;
+			padding: 1px;
+			position: relative;
+			text-align: center; /* center align the h1 tag */
+			width: 100%;
+		}
+
+		.header p {
+			display: inline-block; /* make the h1 tag take only the width it needs */
+			font-family: "DM Sans", sans-serif, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+			font-style: normal;
+			font-weight: 600;
+			font-size: 25px;
+			line-height: 35px;
+		}
+	
+		
+
+		/* Style for the logo */
+		.logo {
+			display: block;
+			max-width: 150px;
+			height: auto;
+			margin: 0 auto;
+			margin-top: 20px;
+			margin-bottom: 20px;
+			float:left;
+			padding-left: 22px;
+			padding-top: 13px;
+			
+		}
+
+		/* Style for the image */
+		.image {
+			position: absolute;
+			top: 20px;
+			right: 20px;
+			display: inline-block;
+			max-width: 150px;
+			height: auto;
+			vertical-align: middle;
+		}
+
+		.header-image {
+			position: absolute;
+			top: 20px;
+			right: 20px;
+			display: inline-block;
+			max-width: 150px;
+			height: auto;
+			vertical-align: middle;
+			text-align: right; /* Align the image to the right */
+		  }
+		  
+		/* Style for the email body */
+		.email-body {
+			margin-top: 40px;
+			text-align: left;
+			min-height: 500px;
+			width: 100%;
+			padding: 0 40px;
+			box-sizing: border-box;
+			background-color: white;
+		}
+
+		/* Style for the footer */
+		.footer {
+  			background: #8F619D;
+  			
+ 			padding: 60px;
+  			position: relative;
+  			width: 100%;
+			}
+		
+		h5 {
+			font-size: 16px;
+  			}
+	    .pale-white-bg{
+			background-color: LightGray;
+		}
+		.top-header{
+			background-color: white;
+			float: left;
+			width: 100%;
+			height:90px;
+
+
+		}
+
+		.blank-header{
+			background-color: LightGray;
+			width: 100%;
+			height:86px;
+
+		}
+		.blank-footer{
+			background-color: LightGray;
+			width: 100%;
+			height:86px;
+		}
+		.email-body p{
+			font-family: "DM Sans", sans-serif, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+			font-style: normal;
+			font-weight: 400;
+			font-size: 18px;
+			line-height: 25px;
+		}
+		.social_logos {
+			display: flex;
+			align-items: center;
+			padding-left: 196px;
+		  }
+		  
+		  .social_logos img {
+			margin: 0 10px;
+			width: 25px; /* or any other desired width */
+			height: 25px; /* or any other desired height */
+		  }
+	</style>
+</head>
+<body>
+	<div class="pale-white-bg">
+
+	<div class="container">
+		<div class="blank-header">
+			
+		</div>
+		<!-- Logo -->
+		<div class="top-header">
+		</div>
+		<!-- Header -->
+		<div class="header">
+		</div>
+
+		<!-- Email Body -->
+		<div class="email-body">
+			<p><strong>Hi {{salutation}} {{doctor_name}}</strong>,</p>
+			<p>
+				The money is rolling in and your payment has been processed. Keep up the good work!
+				Along the way, if you need any assistance, feel free to reach out to us via
+				drsupport@inticure.com </p>
+			<p class="mt-4"><br>Team Inticure</p>
+		</div>
+		<!-- Footer -->
+		<div class="footer">
+			<div style="padding-left: 120px;color: white;">
+			  <p><b>Your safety and privacy is our number one priority. ALWAYS!</b></p>
+			</div>
+			<div style="padding-left: 269px;color: white;">
+				<p><b>Follow Us</b></p>
+			</div>
+			<div class="social_logos"><p><a href="https://www.facebook.com/profile.php?id=100086973277320">
+				<img src="http://api.inticure.com/media/facebook_x3t0h7Z.png"/></a>
+				<a href="https://www.youtube.com/channel/UCmFHPhjy7R6E_Lfv9_4nr-Q"><img src="http://api.inticure.com/media/Youtube.png"/></a>
+				<a href="https://www.instagram.com/get_inticured/"><img src="http://api.inticure.com/media/instagram.png" /></a>
+				<a href="https://www.linkedin.com/company/inticure/?viewAsMember=true"><img src="http://api.inticure.com/media/linkedin.png"/></a>
+			</p>
+			</div>
+			{#<div style="padding-left: 298px;">#}
+			{#}	<p><b><a href="#"><img src="http://api.inticure.com/templates/images/socials/facebook.png" alt=""></a></b></p>#}
+			{#</div>#}
+			<div style="padding-left:144px;color: white;">
+				<p><b>Privacy Policy © 2022 NextBig HealthCare Pvt. Ltd</b></p>
+			</div>
+		</div>
+		<div class="blank-footer">
+			
+		</div>
+		  
+		  
+	</div>
+</div>
+</body>
+</html>

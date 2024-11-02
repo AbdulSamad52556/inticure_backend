@@ -1,0 +1,60 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables file
+.env
+*.env
+
+# Virtual environment folder
+env/
+venv/
+.venv/
+
+# macOS system files
+.DS_Store
+
+# Ignore Django static and media folders (if generated dynamically)
+staticfiles/
+media/
+
+# Database files (for SQLite, adjust if using a different DB)
+*.sqlite3
+
+# Ignore log files and temporary files
+*.log
+*.pot
+*.pyc
+*.so
+
+# Migration files (optional, except for __init__.py)
+**/migrations/*.py
+!**/migrations/__init__.py
+
+# Node modules (if applicable)
+node_modules/
+
+# Docker files (if they don’t need to be in version control)
+.dockerignore
+docker-compose.yml
+
+# Ignore IDE/project-specific settings
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Images (adjust if you need to keep specific images in version control)
+*.png
+
+# System and temporary files
+*.bak
+*.swp
+*.tmp
+Thumbs.db
+
+# Django project files in `inticure_backend`
+inticure_backend/staticfiles/
+inticure_backend/media/
+inticure_backend/db.sqlite3
