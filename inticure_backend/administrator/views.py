@@ -46,6 +46,34 @@ from common.views import get_category_name
 
 sms_service = MessageClient()
 
+@api_view(['POST'])
+def contact_form_submission(request):
+    # Extract data from request
+    name = request.data.get('name')
+    email = request.data.get('email')
+    phone_number = request.data.get('number')
+    message = request.data.get('message')
+
+    # Define email content
+    email_subject = f"Contact Form Submission from {name}"
+    email_body = (
+        f"Name: {name}\n"
+        f"Email: {email}\n"
+        f"Phone Number: {phone_number}\n"
+        f"Message:\n{message}"
+    )
+
+    # Send email
+    mail.send_mail(
+        email_subject,
+        email_body,
+        'your_email@example.com',  # Sender's email
+        ['your_recipient_email@example.com'],  # Recipient email
+        fail_silently=False,
+    )
+
+    return JsonResponse({'message': 'Email sent successfully'}, status=status.HTTP_200_OK)
+
 def get_customer_location(customer_id):
     try:
         location=CustomerProfile.objects.get(user_id=customer_id).location

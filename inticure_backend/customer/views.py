@@ -18,7 +18,7 @@ from django.contrib.auth.models import User
 from analysis.models import AppointmentHeader,Invoices
 from doctor.serializer import  AppointmentHeaderSerializer
 from .serializer import CustomerProfileSerializer,AppointmentRatingsSerializer
-from .models import CustomerProfile, AppointmentRatings,StripeCustomer,TemporaryTransactionData
+from .models import CustomerProfile, AppointmentRatings,StripeCustomer,TemporaryTransactionData, RazorpayCustomer
 from administrator.models import Plans,Transactions,CouponRedeemLog,Locations
 from administrator.serializer import UserSerializer
 import razorpay
@@ -46,36 +46,42 @@ razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZO
 
 """Customer Profile CRUD operations"""
 
+def checkout_preprocess2(user_id,amount,temp_id,currency,appointment_flag):
+    customer_email = User.objects.get(id=user_id).email
+    razorpay.api_key = settings.RAZORPAY_API_KEY
+    razorpay_customer = RazorpayCustomer.objects.filter(customer_id=user_id)
+    if razorpay_customer.count() > 0:
+        razorpay_customer_token_id = razorpay_customer.first().razorpay_customer_token_id
+    else:
+        receipt = "receipt_001"
+        razorpay_order = razorpay_client.order.create(
+            dict(amount=amount*100, currency=currency, receipt=receipt, payment_capture="1")
+        )
+        print(razorpay_order)
+        razorpay_customer_token_id = razorpay_order['id']
+        RazorpayCustomer.objects.create(customer_id=user_id,
+                                      razorpay_customer_token_id=razorpay_customer_token_id)
+    data = {}
+    data['key'] = settings.RAZORPAY_API_KEY
+    data['razorpay_customer_token_id'] = razorpay_customer_token_id
+    data['amount'] = amount*100
+    data['temp_id'] = temp_id
+    data['currency'] = currency
+    data['user_id'] = user_id
+    data['appointment_flag'] = appointment_flag
+    return data
+
 def payment_page(request,temp_id):
     appointment_flag = request.GET.get('appointment_flag')
     new_data = request.GET.get('new_data')
     print('appointment_flag',appointment_flag)
     print('new_data',new_data)
-    return render(request, 'razorpayment/payment.html', {"api_key": settings.RAZORPAY_API_KEY})
-
-@csrf_exempt
-def create_order(request):
-    if request.method == "POST":
-        # Get payment details from the request
-        amount = 500*100 # Amount in paise (e.g., 50000 paise = ₹500)
-        currency = "INR"
-        receipt = "receipt_001"
-
-        # Create Razorpay order
-        razorpay_order = razorpay_client.order.create(
-            dict(amount=amount, currency=currency, receipt=receipt, payment_capture="1")
-        )
-        
-        order_id = razorpay_order["id"]
-        print('razorpay_order',razorpay_order)
-        return JsonResponse({
-            "order_id": order_id,
-            "amount": amount,
-            "currency": currency,
-            "razorpay_key": settings.RAZORPAY_API_KEY,
-        })
-
-    return JsonResponse({"error": "Invalid request method."}, status=400)
+    transaction_qset=TemporaryTransactionData.objects.get(temp_id=temp_id)
+    print(transaction_qset.user_id,transaction_qset.total_amount,transaction_qset.currency,appointment_flag)
+    data = checkout_preprocess2(transaction_qset.user_id,
+    transaction_qset.total_amount,temp_id,transaction_qset.currency,appointment_flag)
+    print('data',data)
+    return render(request, 'razorpayment/payment.html', data)
 
 @csrf_exempt
 def verify_payment(request):
@@ -198,7 +204,6 @@ def success_view(request,temp_id):
     if temp_qset.appointment_id is None:
       print("none")
     else:
-      
        try:
            invoice=Invoices.objects.get(appointment_id=temp_qset.appointment_id)
            invoice_id=invoice.invoice_id
@@ -256,12 +261,7 @@ def failed_view2(request,temp_id):
     data = {}
     print(temp_id)
     try:
-      TemporaryTransactionData.objects.get(temp_id=temp_id).delete()
-      # total_amount=temp_qset.total_amount
-      # Invoices.objects.filter(appointment_id=temp_qset.appointment_id,status=2).update(@@@@@@@@@follow up booking@@@@@@@@@@@@@@@@@@
-      # status=1,vendor_fee=total_amount*20/100,tax=0,
-      # discounts=temp_qset.discount,total=total_amount,mode_of_pay="card")
-      
+      TemporaryTransactionData.objects.get(temp_id=temp_id).delete()      
     except:
       print('Transaction data unavailable')  
     data['key'] = settings.STRIPE_PUBLISHABLE_KEY

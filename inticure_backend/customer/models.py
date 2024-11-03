@@ -31,6 +31,11 @@ class StripeCustomer(models.Model):
     stripe_customer_token_id = models.TextField()
     customer_id = models.IntegerField()
 
+class RazorpayCustomer(models.Model):
+    razorpay_customer_id = models.BigAutoField(primary_key=True)
+    razorpay_customer_token_id = models.TextField()
+    customer_id = models.IntegerField()
+
 class TemporaryTransactionData(models.Model):
     temp_id=models.BigAutoField(primary_key=True)
     user_id=models.IntegerField()

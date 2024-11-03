@@ -63,60 +63,63 @@
     </div>
 
     <script>
-        document.getElementById("rzp-button").onclick = async function () {
-            try {
-                const response = await fetch("{% url 'create_order' %}", { method: "POST" });
-                const orderData = await response.json();
-
-                const options = {
-                    key: orderData.razorpay_key,
-                    amount: orderData.amount,
-                    currency: orderData.currency,
-                    name: "Inticure",
-                    description: "",
-                    image: "{% static 'images/Site-icon.png' %}",
-                    order_id: orderData.order_id,
-                    handler: function (response) {
-                       fetch("{% url 'verify_payment' %}", {
-                            method: "POST",
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_signature: response.razorpay_signature,
-                            }),
-                        })
-                        .then(response => response.json())
-                        .then(result => {
-                            if (result.status === "success") {
-                                window.location.href = "https://external-url.com/payment-success";
-                            } else {
-                                window.location.href = "https://external-url.com/payment-failed?message=" + encodeURIComponent(result.message);
+        document.getElementById("rzp-button").onclick = function () {
+            const options = {
+                key: "{{ key }}",  // Razorpay API Key from Django
+                amount: {{ amount }},  // Payment amount from Django (in smallest currency unit, e.g., paise for INR)
+                currency: "{{ currency }}",  // Currency from Django (e.g., "INR", "USD")
+                name: "Inticure",
+                description: "",
+                image: "{% static 'images/Site-icon.png' %}",
+                order_id: "{{ razorpay_customer_token_id }}",  // Razorpay Order ID from Django
+                appointment_flag:"{{appointment_flag}}",
+                handler: function (response) {
+                    // On successful payment, send data to verify
+                    fetch("{% url 'verify_payment' %}", {
+                        method: "POST",
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_signature: response.razorpay_signature,
+                        }),
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.status === "success") {
+                            if ("{{appointment_flag}}" === "first_appointment") {
+                                window.location.href = "https://analysis.inticure.online/thank_you_page";
                             }
-                        })
-                        .catch(error => {
-                            console.error("Error verifying payment:", error);
-                            window.location.href = "https://external-url.com/payment-error";
-                        });
-                    },
-                    prefill: {
-                        name: "Your Name",
-                        email: "youremail@example.com",
-                        contact: "9999999999"
-                    },
-                    theme: {
-                        color: "#F37254"
-                    }
-                };
+                            else{
+                                window.location.href = "https://customers.inticure.online/payment_success";
+                            }
+                        } else {
+                            if ("{{appointment_flag}}" === "first_appointment") {
+                                window.location.href = "https://customers.inticure.online/payment_failure";
+                            }
+                            else{
+                                window.location.href = "https://customers.inticure.online/payment_failure";
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error verifying payment:", error);
+                        window.location.href = "https://external-url.com/payment-error";
+                    });
+                },
+                prefill: {
+                    name: "{{ new_data.name|default:'Your Name' }}",  // Prefill with user data
+                    email: "{{ new_data.email|default:'youremail@example.com' }}",
+                },
+                theme: {
+                    color: "#F37254"
+                }
+            };
 
-                const rzp = new Razorpay(options);
-                rzp.open();
-            } catch (error) {
-                console.error("Error initializing payment:", error);
-                alert("Failed to initialize payment. Please try again.");
-            }
+            const rzp = new Razorpay(options);
+            rzp.open();
         };
     </script>
 </body>
