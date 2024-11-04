@@ -1,0 +1,125 @@
+<!-- templates/payment.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Razorpay Payment</title>
+    <style>
+        body {
+            background-color: #f7f9fc;
+            font-family: Arial, sans-serif;
+        }
+
+        .payment-container {
+            max-width: 500px;
+            margin: 100px auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            text-align: center;
+        }
+
+        .logo {
+            margin-bottom: 20px;
+        }
+
+        .payment-button {
+            background-color: #F37254;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 15px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .payment-button:hover {
+            background-color: #D95B43;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #888;
+        }
+    </style>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+    <div class="payment-container">
+        <div class="logo">
+            <img src="{% static 'images/Site-icon.png' %}" alt="Logo" width="100">
+        </div>
+        <h1>Make a Payment</h1>
+        <p>Please click the button below to proceed with your payment.</p>
+        <button id="rzp-button" class="payment-button">Pay Now</button>
+        <div class="footer">
+            <p>Secure payment processing with Razorpay</p>
+        </div>
+    </div>
+    <script>
+        var options = {
+            key: "{{ key }}", // Razorpay Key ID
+            amount: "{{ amount }}", // Amount in paise
+            currency: "{{ currency }}",
+            name: "Inticure",
+            description: "",
+            order_id: "{{ razorpay_customer_token_id }}", // Razorpay Order ID
+            handler: function (response) {
+                console.log("Payment ID:", response.razorpay_payment_id);
+                console.log("Order ID:", response.razorpay_order_id);
+                console.log("Signature:", response.razorpay_signature);
+                try{
+                fetch("{% url 'verify_payment' %}", {
+                    method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_signature: response.razorpay_signature,
+                    }),
+                })
+                .then(response => response.json())
+                .then(result => {
+                    console.log("Verification result:", result);
+                    if (result.status === "success") {
+                        
+                            window.location.href = "https://customers.inticure.online/payment_success";
+                    } else {
+                        window.location.href = "https://customers.inticure.online/payment_failure";
+                    }
+                })
+                .catch(error => {
+                    console.error("Error verifying payment:", error);
+                    window.location.href = "https://customers.inticure.online/payment_failure";
+                });
+                }
+                catch (error){
+                    console.log(error)
+                }
+
+            },
+            "prefill": {
+                "name": "Your Name",
+                "email": "your.email@example.com",
+                "contact": "9999999999"
+            },
+            "theme": {
+                "color": "#3399cc"
+            }
+        };
+        
+        var rzp1 = new Razorpay(options);
+        
+        document.getElementById('rzp-button').onclick = function(e){
+            rzp1.open();
+            e.preventDefault();
+        }
+    </script>
+</body>
+</html>

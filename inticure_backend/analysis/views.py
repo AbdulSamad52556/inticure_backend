@@ -8,7 +8,7 @@ from django.http import Http404
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from django.utils.html import strip_tags
-from django.core import mail 
+from django.core import mail    
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.template.loader import get_template
@@ -297,8 +297,18 @@ def create_user(email,first_name,last_name):
         from_email = 'wecare@inticure.com'
         to = user.email
         cc = "nextbighealthcare@inticure.com"
+        email_message = mail.EmailMessage(
+            subject=subject,
+            body=plain_message,
+            from_email=from_email,
+            to=[to],
+            cc=[cc]
+        )
 
-        mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+        email_message.send(fail_silently=False)
+        # email_message = mail.EmailMessage(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+        # email_message.send(fail_silently=False)
+
         return user.id
 
 
@@ -1764,7 +1774,7 @@ def payments_view(request):
                             doctor_id2.append(users.doctor_id)
                 if request.data['gender_pref'] != "" and "gender_pref" in request.data:
                     print('gender available')
-                    users = DoctorProfiles.objects.filter(user_id__in = doctor_id2,gender = request.data['gender_pref'])
+                    users = DoctorProfiles.objects.filter(user_id__in = doctor_id2, gender = request.data['gender_pref'])
                     if len(users) == 0:
                         users = DoctorProfiles.objects.filter(user_id__in = doctor_id2)
                 else:

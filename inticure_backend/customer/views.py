@@ -45,6 +45,31 @@ razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZO
 #             )
 
 """Customer Profile CRUD operations"""
+def payment2(request,temp_id):
+    appointment_flag = request.GET.get('appointment_flag')
+    new_data = request.GET.get('new_data')
+    print('appointment_flag',appointment_flag)
+    print('new_data',new_data)
+
+    transaction_qset=TemporaryTransactionData.objects.get(temp_id=temp_id)
+    client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_SECRET))
+    payment_order = client.order.create({
+        'amount': transaction_qset.total_amount*100,
+        'currency': "INR",
+        'receipt': "order_receipt",
+        'payment_capture': '1' 
+    })
+    data = {}
+    data['key'] = settings.RAZORPAY_API_KEY
+    data['razorpay_customer_token_id'] = payment_order['id']
+    data['amount'] = transaction_qset.total_amount*100
+    data['temp_id'] = temp_id
+    data['currency'] = transaction_qset.currency
+    data['user_id'] = 0
+    data['appointment_flag'] = appointment_flag
+    print('data',data)
+    return render(request, 'razorpayment/payment2.html', data)
+
 
 def checkout_preprocess2(user_id,amount,temp_id,currency,appointment_flag):
     customer_email = User.objects.get(id=user_id).email

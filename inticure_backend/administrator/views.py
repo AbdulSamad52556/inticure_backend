@@ -4,6 +4,7 @@ from multiprocessing.util import is_abstract_socket_namespace
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render
 from django.core import mail
+from django.core.mail import EmailMessage
 from common.filter import custom_filter
 from django.utils.html import strip_tags
 from django.template.loader import render_to_string
@@ -54,7 +55,8 @@ def contact_form_submission(request):
     phone_number = request.data.get('number')
     message = request.data.get('message')
 
-    # Define email content
+    from_email = 'nextbighealthcare@inticure.com'
+    cc_email = ['wecare@inticure.com']  
     email_subject = f"Contact Form Submission from {name}"
     email_body = (
         f"Name: {name}\n"
@@ -63,14 +65,14 @@ def contact_form_submission(request):
         f"Message:\n{message}"
     )
 
-    # Send email
-    mail.send_mail(
-        email_subject,
-        email_body,
-        'your_email@example.com',  # Sender's email
-        ['your_recipient_email@example.com'],  # Recipient email
-        fail_silently=False,
+    email_message = EmailMessage(
+        subject=email_subject,
+        body=email_body,
+        from_email=from_email,
+        to=cc_email,
     )
+
+    email_message.send(fail_silently=False)
 
     return JsonResponse({'message': 'Email sent successfully'}, status=status.HTTP_200_OK)
 

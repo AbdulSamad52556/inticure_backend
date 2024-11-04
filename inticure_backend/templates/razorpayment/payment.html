@@ -64,6 +64,8 @@
 
     <script>
         document.getElementById("rzp-button").onclick = function () {
+            try{
+
             const options = {
                 key: "{{ key }}",  // Razorpay API Key from Django
                 amount: {{ amount }},  // Payment amount from Django (in smallest currency unit, e.g., paise for INR)
@@ -74,6 +76,10 @@
                 order_id: "{{ razorpay_customer_token_id }}",  // Razorpay Order ID from Django
                 appointment_flag:"{{appointment_flag}}",
                 handler: function (response) {
+                    console.log("Payment ID:", response.razorpay_payment_id);
+                    console.log("Order ID:", response.razorpay_order_id);
+                    console.log("Signature:", response.razorpay_signature);
+                    try{
                     // On successful payment, send data to verify
                     fetch("{% url 'verify_payment' %}", {
                         method: "POST",
@@ -88,6 +94,7 @@
                     })
                     .then(response => response.json())
                     .then(result => {
+                        console.log("Verification result:", result);
                         if (result.status === "success") {
                             if ("{{appointment_flag}}" === "first_appointment") {
                                 window.location.href = "https://analysis.inticure.online/thank_you_page";
@@ -106,8 +113,13 @@
                     })
                     .catch(error => {
                         console.error("Error verifying payment:", error);
-                        window.location.href = "https://external-url.com/payment-error";
+                        window.location.href = "https://customers.inticure.online/payment_failure";
                     });
+                    }
+                    catch (error){
+                        console.log(error)
+                    }
+
                 },
                 prefill: {
                     name: "{{ new_data.name|default:'Your Name' }}",  // Prefill with user data
@@ -119,7 +131,18 @@
             };
 
             const rzp = new Razorpay(options);
+            rzp.on('payment.failed', function (response){
+                console.error("Payment failed", response.error);
+                alert("Oops! Something went wrong with your payment. Please try again.");
+                window.location.href = "https://customers.inticure.online/payment_failure";
+            });
             rzp.open();
+
+
+            }
+            catch (error){
+                console.log('Error verifying payment22',error)
+            }
         };
     </script>
 </body>
