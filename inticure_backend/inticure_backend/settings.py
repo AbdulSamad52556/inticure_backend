@@ -139,8 +139,8 @@ USE_I18N = True
 
 USE_TZ = True
 
-RAZORPAY_API_KEY='rzp_test_gNyXtP0AU4bGwW'
-RAZORPAY_API_SECRET='Zeic7P5HDgcEHzkqRA7njf3p'
+RAZORPAY_API_KEY='rzp_live_eQW1QMaOrh8ew2'
+RAZORPAY_API_SECRET='v80oY9rr7MrkcAwGvylaIfla'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 

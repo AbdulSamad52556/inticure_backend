@@ -1868,10 +1868,6 @@ def junior_doctor_transfer_view(request):
         'message':'No Doctors Available'
     })
 
-
-
-
-
 @api_view(['POST'])
 def create_followup_reminder_view(request):
     reminder_serilazer = FollowUpReminderSerializer(data=request.data)
@@ -2567,7 +2563,6 @@ def available_slots_view(request):
                 working_times_from=[]
                 timeslot_added=[]
             print('2148 ', working_hour)
-            'ss'
             jr_doc_added_slots=JuniorDoctorSlotsSerializer(JuniorDoctorSlots.objects.filter(
                 doctor_id=working_hour['doctor_id'],date=working_hour['date'],is_active=0),many=True).data
             print ("compare date",working_hour['date'],working_hour['doctor_id'])
@@ -2808,7 +2803,7 @@ def calender_edit_view(request):
        doctor=DoctorCalenderUpdate.objects.get(doctor_id=doctor_id,date=dates)
     except:
         doctor=None
-
+    print(slots)
     if slots!="" and slots!=[]:
         print(min(slots),max(slots))
         if doctor==None:
@@ -2830,6 +2825,7 @@ def calender_edit_view(request):
                         JuniorDoctorSlots.objects.get(doctor_id = doctor_id,date = dates,time_slot = time_slot).delete()
                     DoctorAddedTimeSlots.objects.filter(doctor_id=itm['doctor_id'],date=itm['date']).delete()
                     print("deleted")
+            
             for slot in slots:
                 print("slots")
                 DoctorAddedTimeSlots.objects.create(doctor_id=doctor_id,slot=slot,date=dates)
@@ -2838,7 +2834,7 @@ def calender_edit_view(request):
                     JuniorDoctorSlots.objects.get(doctor_id = doctor_id,date = dates,time_slot = time_slot)
                 except Exception as e:
                     print(e)
-                    JuniorDoctorSlots.objects.create(doctor_id = doctor_id, date = dates, time_slot = time_slot, is_active = 0)
+                    JuniorDoctorSlots.objects.create(doctor_id = doctor_id, date = dates, time_slot = time_slot)
         else:
             if DoctorAddedTimeSlots.objects.filter(doctor_id=doctor_id,date=dates).count() > 0:
                 print("doctor slots > 0 ")
