@@ -296,7 +296,6 @@ def create_user(email,first_name,last_name):
         # plain_message="account-created"
         from_email = 'wecare@inticure.com'
         to = user.email
-        cc = "nextbighealthcare@inticure.com"
         email_message = mail.EmailMessage(
             subject=subject,
             body=plain_message,

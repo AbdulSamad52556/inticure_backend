@@ -160,6 +160,7 @@ def sign_in_otp_view(request):
     id_jr_doc=0
     gender=""
     is_senior=0
+    is_dr = False
     languages_known=""
     user_flag=""
     if "mobile_num" in request.data and "otp" not in request.data :
@@ -175,6 +176,7 @@ def sign_in_otp_view(request):
             if user_id == None:
                 try:
                     user_id=DoctorProfiles.objects.get(mobile_number=request.data['mobile_num']).user_id
+                    is_dr = True
                     print(user_id)
                     print('doctor')
                 except Exception as e:
@@ -185,14 +187,26 @@ def sign_in_otp_view(request):
             if user_id != None:   
                 OTP=generateOTP()
                 print(OTP)
-                try:
-                    otp_verrify=OtpVerify.objects.get(
-                    mobile_number=request.data['mobile_num'])
-                    otp_verrify.otp = OTP
-                    otp_verrify.save()
-                except:
-                    OtpVerify.objects.create(
-                        mobile_number=request.data['mobile_num'],otp=OTP)
+                if is_dr:
+                    try:
+                        email = User.objects.get(id = user_id).email
+                        otp_verify = EmailOtpVerify.objects.get(
+                        email=email)
+                        otp_verify.otp = OTP
+                        otp_verify.save()
+                    except Exception as e:
+                        print(e)
+                        EmailOtpVerify.objects.create(
+                            email=email,otp=OTP)
+                else:
+                    try:
+                        otp_verrify=OtpVerify.objects.get(
+                        mobile_number=request.data['mobile_num'])
+                        otp_verrify.otp = OTP
+                        otp_verrify.save()
+                    except:
+                        OtpVerify.objects.create(
+                            mobile_number=request.data['mobile_num'],otp=OTP)
                 print("OTP",OTP)
                 
                 if User.objects.get(id=user_id).is_active==0:
@@ -208,6 +222,14 @@ def sign_in_otp_view(request):
                     "+91" + str(request.data['mobile_num']))
                 except:
                     print("MESSAGE SENT ERROR")
+                if is_dr:
+                    return Response({
+                        'response_code':200,
+                        'status': 'Success',
+                        'message': 'OTP Generated',
+                        'otp': OTP,
+                        'email': User.objects.get(id = user_id).email
+                    })
                 return Response({
                  'response_code': 200,
                     'status': 'Success',
@@ -220,13 +242,6 @@ def sign_in_otp_view(request):
                     'status': 'Failed',
                     'message': 'Invalid User'},
                     status=status.HTTP_400_BAD_REQUEST)
-            # sms_service.send_message("Hello Your OTP for LogIn is:%s"%OTP,
-            #      "+91" + str(request.data['mobile_num']))
-            # return Response({
-            #      'response_code': 200,
-            #         'status': 'Success',
-            #         'message': 'OTP Generated',
-            #         'otp':OTP})
             
         except Exception as e:
             print(e)
