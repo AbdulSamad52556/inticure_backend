@@ -301,7 +301,6 @@ def create_user(email,first_name,last_name):
             body=plain_message,
             from_email=from_email,
             to=[to],
-            cc=[cc]
         )
 
         email_message.send(fail_silently=False)

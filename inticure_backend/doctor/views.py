@@ -2458,6 +2458,8 @@ def available_slots_view(request):
         print('filter',filter)
         if "gender" in request.data and request.data['gender'] != "":
           filter['gender']=request.data['gender']
+        else:
+            filter['gender__in']=['male,female']
         if "doctor" in request.data and request.data['doctor'] != "":
             filter['doctor_flag']=request.data['doctor']
 
@@ -2622,19 +2624,28 @@ def available_slots_view(request):
             })
         else:
             print('  2140  ')
-            # print(time_slot)
+
+            def sort_time_slots(data):
+                for day_data in data:
+                    day_data['time_slots'] = sorted(
+                        day_data['time_slots'],
+                        key=lambda slot: datetime.datetime.strptime(slot['time_slot'], '%I:%M%p')
+                    )
+                return data
+            
             sorted_timeslot= sorted(time_slot, key=lambda k: k['date'])
             for data in sorted_timeslot:
                 data['time_slots'] = sorted(
                 data['time_slots'],
                 key=lambda k: k['junior_doctor_slot_id']
-                
                 )
-            # print('2197 ', sorted_timeslot)
+            sorted_data = sort_time_slots(sorted_timeslot)
+            print('2643', sorted_data)
+            print('2197 ', sorted_timeslot)
             return Response({
             'response_code': 200,
             'status': 'Ok',
-            "slots":sorted_timeslot,
+            "slots":time_slot,
             "Message":"The appointment may take upto 10 minutes",
             'preferred_one':preferred_one,
             'preferred_gender':preferred_gender

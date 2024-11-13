@@ -290,7 +290,7 @@ def failed_view2(request,temp_id):
     except:
       print('Transaction data unavailable')  
     data['key'] = settings.STRIPE_PUBLISHABLE_KEY
-    return redirect("https://customers.inticure.online/payment_failure")
+    return redirect("https://analysis.inticure.online/payment_failure")
 
 @csrf_exempt
 def create_checkout_session(request):

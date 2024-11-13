@@ -9,7 +9,7 @@ class DoctorProfiles(models.Model):
     department=models.CharField(max_length=20)
     specialization=models.CharField(max_length=20)
     doctor_flag=models.CharField(max_length=10)
-    mobile_number=models.CharField(max_length=12)
+    mobile_number=models.CharField(max_length=20)
     gender=models.CharField(max_length=10,null=True)
     working_date_frm=models.DateField(null=True)
     working_date_to=models.DateField(null=True)
