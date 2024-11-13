@@ -16,6 +16,8 @@ from django.utils.html import strip_tags
 from django.db.models import F  
 from django.utils import timezone
 # Create your views here.
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import viewsets, status, permissions, views
@@ -138,7 +140,74 @@ def assign_senior_doctor(request):
 
     else:
         return 0
-   
+
+
+@csrf_exempt  # Disables CSRF protection for this endpoint (only if necessary)
+def block_doctor(request, doctor_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            action = data.get('action', '')
+
+            if action == 'block':
+                doctor = DoctorProfiles.objects.get(doctor_profile_id=doctor_id)
+                doctor.is_blocked = True
+                doctor.save() 
+
+                return JsonResponse({'status': 'success', 'message': 'Doctor blocked successfully.'})
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Invalid action specified.'}, status=400)
+        except DoctorProfiles.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Doctor not found.'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
+
+
+@csrf_exempt  # Disables CSRF protection for this endpoint (only if necessary)
+def block_doctor(request, doctor_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            action = data.get('action', '')
+
+            if action == 'block':
+                doctor = DoctorProfiles.objects.get(doctor_profile_id=doctor_id)
+                doctor.is_blocked = True
+                doctor.save() 
+
+                return JsonResponse({'status': 'success', 'message': 'Doctor blocked successfully.'})
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Invalid action specified.'}, status=400)
+        except DoctorProfiles.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Doctor not found.'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
+
+@csrf_exempt  # Disables CSRF protection for this endpoint (only if necessary)
+def unblock_doctor(request, doctor_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            action = data.get('action', '')
+
+            if action == 'block':
+                doctor = DoctorProfiles.objects.get(doctor_profile_id=doctor_id)
+                doctor.is_blocked = False
+                doctor.save() 
+
+                return JsonResponse({'status': 'success', 'message': 'Doctor blocked successfully.'})
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Invalid action specified.'}, status=400)
+        except DoctorProfiles.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Doctor not found.'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
 """View to list appointments"""
 @api_view(['POST'])
 def appointment_list_view(request):

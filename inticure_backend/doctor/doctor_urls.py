@@ -9,7 +9,7 @@ from .views import appointment_close_view, appointment_list_view, appointment_st
     create_followup_reminder_view, followup_reminder_list_view, create_discussion_view, discussion_list_view,\
     working_hour_view,working_hour_list_view,calender_view,timeslot_list_view,specialization_timeslot_view,\
     calender_edit_view,appointment_patient_history,calender_add_view,escalate_appointment_view, doctors_list_view, escalated_one, doctor_time_slots,appointment_completed, timeslots,\
-    specialization_timeslot_view_reschedule
+    specialization_timeslot_view_reschedule, block_doctor, unblock_doctor
 
 urlpatterns = [
     path('appointment_list', appointment_list_view, name='appointment_list'),
@@ -49,5 +49,7 @@ urlpatterns = [
     path('doctor_time_slots',doctor_time_slots,name='doctor_time_slots'),
     path('appointment_completed',appointment_completed,name='appointment_completed'),
     path('timeslots',timeslots,name='timeslots'),
+    path('block_doctor/<int:doctor_id>/', block_doctor, name='block_doctor'),
+    path('unblock_doctor/<int:doctor_id>/', unblock_doctor, name='unblock_doctor'),
     path('', include(router.urls))
 ]

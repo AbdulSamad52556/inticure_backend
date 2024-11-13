@@ -32,6 +32,7 @@ class DoctorProfiles(models.Model):
     profile_file_name=models.TextField(null=True)
     profile_file_size=models.TextField(null=True)
     doctor_bio=models.CharField(null=True,max_length=500)
+    is_blocked = models.BooleanField(default = False)
     
 class Obeservations(models.Model):
     appointment_id=models.BigIntegerField()
