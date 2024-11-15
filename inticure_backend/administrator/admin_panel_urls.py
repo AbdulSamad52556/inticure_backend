@@ -47,6 +47,5 @@ urlpatterns = [
     path('api/doctor-duration/', duration, name='doctor_duration'),
     path('api/add-duration/', add_duration, name='add_duration'),
     path('api/contact/', contact_form_submission, name='contact_form_submission'),
-
     path('', include(router.urls)),
 ]

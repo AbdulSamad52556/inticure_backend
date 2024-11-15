@@ -179,10 +179,20 @@ def sign_in_otp_view(request):
                     is_dr = True
                     print(user_id)
                     print('doctor')
+                    if user_id:
+                        try:
+                            DoctorProfiles.objects.get(mobile_number=request.data['mobile_num'],is_blocked = False).user_id
+                        except:
+                            return Response({
+                                'response_code': 400,
+                                'status': 'Failed',
+                                'message': 'User Banned'},
+                                status=status.HTTP_400_BAD_REQUEST)
                 except Exception as e:
                     print(e)
                     if user_flag=="":
                         user_id=None
+                
             print('user_id',user_id)
             if user_id != None:   
                 OTP=generateOTP()
@@ -254,6 +264,26 @@ def sign_in_otp_view(request):
         print('email')
         try:
             user_id=User.objects.get(email=request.data['email']).id
+            try:
+                if DoctorProfiles.objects.get(user_id = user_id):
+                    try:
+                        DoctorProfiles.objects.get(user_id= user_id, is_blocked = False)
+                    except:
+                        return Response({
+                            'response_code': 400,
+                            'status': 'Failed',
+                            'message': 'User Banned'},
+                            status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                CustomerProfile.objects.get(user_id = user_id)
+                    # try:
+                    #     CustomerProfile.objects.get(user_id= user_id, is_blocked = False)
+                    # except:
+                    #     return Response({
+                    #         'response_code': 400,
+                    #         'status': 'Failed',
+                    #         'message': 'User Banned'},
+                    #         status=status.HTTP_400_BAD_REQUEST)
             OTP=generateOTP()
             try:
                 otp_verify = EmailOtpVerify.objects.get(

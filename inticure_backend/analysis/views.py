@@ -274,40 +274,50 @@ def create_user_mobile_num(mobile_number):
 
 def create_user(email,first_name,last_name):
     try:
-        user_queryset = User.objects.get(email=email)
-        if user_queryset:
-            return user_queryset.id
-        else:
+        try:
+            user_queryset = User.objects.get(email=email)
+            if user_queryset:
+                return user_queryset.id
+            else:
+                user = User.objects.create_user(username=email, password=email, email=email, first_name=first_name,
+                last_name=last_name)
+                CustomerProfile.objects.create(user_id=user.id)
+            print('try worked')
+        except Exception as e:
+            print('user didnt find exception')
+            print(e)
             user = User.objects.create_user(username=email, password=email, email=email, first_name=first_name,
-            last_name=last_name)
+                last_name=last_name)
             CustomerProfile.objects.create(user_id=user.id)
-    except:
-        user = User.objects.create_user(username=email, password=email, email=email, first_name=first_name,
-            last_name=last_name)
-        CustomerProfile.objects.create(user_id=user.id)
-        
-        html_template=get_template('user_confirmation.html')
-        print(encryption_key.encrypt(str(user.id).encode()))
-        user_id=encryption_key.encrypt(str(user.id).encode())
-        subject = 'inticure account creation'
-        html_message = render_to_string('user_confirmation.html', {'email': user.email,
-        'user_id':user_id.decode()})
-        plain_message = strip_tags(html_message)
-        # plain_message="account-created"
-        from_email = 'wecare@inticure.com'
-        to = user.email
-        email_message = mail.EmailMessage(
-            subject=subject,
-            body=plain_message,
-            from_email=from_email,
-            to=[to],
-        )
+            
+            html_template=get_template('user_confirmation.html')
+            print(encryption_key.encrypt(str(user.id).encode()))
+            user_id=encryption_key.encrypt(str(user.id).encode())
+            subject = 'inticure account creation'
+            html_message = render_to_string('user_confirmation.html', {'email': user.email,
+            'user_id':user_id.decode()})
+            plain_message = strip_tags(html_message)
+            # plain_message="account-created"
+            from_email = 'wecare@inticure.com'
+            to = user.email
+            mail.send_mail(subject, plain_message, from_email, [to], html_message=html_message)
 
-        email_message.send(fail_silently=False)
+            return user.id
+    except Exception as e:
+        print('dont know exception')
+
+        print(e)
+        return 0
+        # email_message = mail.EmailMessage(
+        #     subject=subject,
+        #     body=plain_message,
+        #     from_email=from_email,
+        #     to=[to],
+        # )
+
+        # email_message.send(fail_silently=False)
         # email_message = mail.EmailMessage(subject, plain_message, from_email, [to], [cc], html_message=html_message)
         # email_message.send(fail_silently=False)
-
-        return user.id
 
 
 """ OTP GENERATION AND VERIFICATION OF CUSTOMER """
@@ -375,15 +385,15 @@ def otp_verify_view(request):
            OTP=generateOTP()
            EmailOtpVerify.objects.create(email=request.data['email'],otp=OTP)
            print("OTP",OTP)
-           subject = 'Inticure OTP Verification'
-           html_message = render_to_string('email_otp.html', {'email':request.data['email'],
-           "confirm":0,"OTP":OTP })
-           plain_message = strip_tags(html_message)
-           # plain_message="account-created"
-           from_email = 'wecare@inticure.com'
-           to = request.data['email']
-           cc = "nextbighealthcare@inticure.com"
-           mail.send_mail(subject, plain_message, from_email, [to],[cc],html_message=html_message)
+        #    subject = 'Inticure OTP Verification'
+        #    html_message = render_to_string('email_otp.html', {'email':request.data['email'],
+        #    "confirm":0,"OTP":OTP })
+        #    plain_message = strip_tags(html_message)
+        #    # plain_message="account-created"
+        #    from_email = 'wecare@inticure.com'
+        #    to = request.data['email']
+        # #    cc = "nextbighealthcare@inticure.com"
+        #    mail.send_mail(subject, plain_message, from_email, [to],html_message=html_message)
            return Response({
                  'response_code': 200,
                     'status': 'Success',

@@ -208,6 +208,22 @@ def unblock_doctor(request, doctor_id):
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
+
+@api_view(['POST'])
+def is_dr_blocked(request):
+    data = request.data
+    try:
+        user = User.objects.get(email = data['email']).id
+        DoctorProfiles.objects.get(user_id = user, is_blocked = False)
+        return Response({
+            'response_code': 200,
+            'status': 'Ok'})
+    except Exception as e:
+        print(e)
+        return Response({
+            'response_code': 400,
+            'status': 'blocked'})
+
 """View to list appointments"""
 @api_view(['POST'])
 def appointment_list_view(request):
