@@ -616,16 +616,20 @@ def appointment_status_update_view(request):
     AppointmentHeader.objects.filter(pk=appointment_id).update(
         appointment_status=appointment_status)
     if appointment_status==3:
-        create_refund(appointment_id)
-        subject = 'Order Cancelled'
-        html_message = render_to_string('order_cancellation.html', {
-        'is_doctor':0,
-        'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
-        plain_message = strip_tags(html_message)
-        from_email = 'wecare@inticure.com'
-        cc = "nextbighealthcare@inticure.com"
-        to = get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
-        mail.send_mail(subject,plain_message, from_email, [to], [cc], html_message=html_message)
+        try:
+            create_refund(appointment_id)
+            subject = 'Order Cancelled'
+            html_message = render_to_string('order_cancellation.html', {
+            'is_doctor':0,
+            'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
+            plain_message = strip_tags(html_message)
+            from_email = 'wecare@inticure.com'
+            cc = "nextbighealthcare@inticure.com"
+            to = get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
+            mail.send_mail(subject,plain_message, from_email, [to], [cc], html_message=html_message)
+        except Exception as e:
+            print(e)
+            print("Email Sending error")
         try:
               sms_service.send_message(
            "Hi There, Your Appointment #%s has been cancelled Please refer email for more information"
@@ -635,15 +639,19 @@ def appointment_status_update_view(request):
               print(e)
               print("MESSAGE SENT ERROR")
     if appointment_status=="9":
-        subject = 'Order Marked No Show'
-        html_message = render_to_string('order_no_show.html', {
-        'is_doctor':0,
-        'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
-        plain_message = strip_tags(html_message)
-        from_email = 'wecare@inticure.com'
-        to = get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
-        cc = 'nextbighealthcare@inticure.com'
-        mail.send_mail(subject,plain_message, from_email, [to], [cc], html_message=html_message)
+        try:
+            subject = 'Order Marked No Show'
+            html_message = render_to_string('order_no_show.html', {
+            'is_doctor':0,
+            'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
+            plain_message = strip_tags(html_message)
+            from_email = 'wecare@inticure.com'
+            to = get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
+            cc = 'nextbighealthcare@inticure.com'
+            mail.send_mail(subject,plain_message, from_email, [to], [cc], html_message=html_message)
+        except Exception as e:
+            print(e)
+            print("Email Sending error")
         try:
               sms_service.send_message(
            "Hi There, Your Appointment #%s has been marked as no show please reschedule your appointment"
@@ -660,16 +668,20 @@ def appointment_status_update_view(request):
     # location=request.data['location_id']
     if appointment_status=="6":
         print("here")
-        subject = 'Order Completed'
-        encrypted_id=encryption_key.encrypt(str(appointment_id).encode())
-        html_message = render_to_string('order_complete.html', {"appointment_id":encrypted_id.decode(),
-        'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
-        plain_message = strip_tags(html_message)
-        from_email = 'wecare@inticure.com'
-        to = get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
-        print(to,"email")
-        cc = "nextbighealthcare@inticure.com"
-        mail.send_mail(subject,plain_message, from_email, [to], [cc], html_message=html_message)
+        try:
+            subject = 'Order Completed'
+            encrypted_id=encryption_key.encrypt(str(appointment_id).encode())
+            html_message = render_to_string('order_complete.html', {"appointment_id":encrypted_id.decode(),
+            'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
+            plain_message = strip_tags(html_message)
+            from_email = 'wecare@inticure.com'
+            to = get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
+            print(to,"email")
+            cc = "nextbighealthcare@inticure.com"
+            mail.send_mail(subject,plain_message, from_email, [to], [cc], html_message=html_message)
+        except Exception as e:
+            print(e)
+            print("Email Sending error")
         doctor=request.data['doctor_id']
         specialization=DoctorProfiles.objects.get(user_id=doctor).specialization
         try:
@@ -1024,17 +1036,20 @@ def prescriptions_text_view(request):
                      for options in datas['consumption_time']:
                         ConsumptionTime.objects.create(prescription_id=instance.id,
                         medication_id=medicine_instance.medication_id,consumption_time=options)
-            subject = 'Your Appointment Prescriptions'
-            html_message = render_to_string('prescriptions.html', {"doctor_flag":0,
-                'email':get_user_mail(AppointmentHeader.objects.get(
-            appointment_id=appointment_id).user_id)})
-            plain_message = strip_tags(html_message)
-            from_email = 'wecare@inticure.com'
-            to =  get_user_mail(AppointmentHeader.objects.get(
-                appointment_id=appointment_id).user_id)
-            cc = 'nextbighealthcare@inticure.com'
-
-            mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+            try:
+                subject = 'Your Appointment Prescriptions'
+                html_message = render_to_string('prescriptions.html', {"doctor_flag":0,
+                    'email':get_user_mail(AppointmentHeader.objects.get(
+                appointment_id=appointment_id).user_id)})
+                plain_message = strip_tags(html_message)
+                from_email = 'wecare@inticure.com'
+                to =  get_user_mail(AppointmentHeader.objects.get(
+                    appointment_id=appointment_id).user_id)
+                cc = 'nextbighealthcare@inticure.com'
+                mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+            except Exception as e:
+                print(e)
+                print("Email Sending error")
         #AppointmentHeader.objects.filter(appointment_id=request.data['appointment_id']).update(appointment_status=request.data['appointment_status'])
         return Response({
         'response_code': 200,
@@ -1389,30 +1404,32 @@ def escalate_appointment_view(request):
         escalated_date=appointment_date,senior_doctor=doctor_id, session_type = session_type, payment_status = False)
     
     SeniorDoctorAvailableTimeSLots.objects.filter(doctor_id = doctor_id, date = appointment_date, time_slot = start_time).update(is_active = 1)
-    
-    subject = 'Payment for consultation'
-    html_message = render_to_string('payment_mail.html', {'appointment_id': appointment_id,
-        "doctor_name":get_users_name(doctor_id),"name":get_users_name(request.data['user_id']),
-        "specialization":get_doctor_specialization(doctor_id),'date':appointment_date,
-        "time":time_slot})
-    
-    user_mail_id=get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
-    # try:
-    #     sms_service.send_message(
-    #     "Hi There, Your Appointment #%s has been escalated on %s,%s Please refer mail for more details"
-    #     %(appointment_id,appointment_date,time_slot),
-    #         "+91" + str(CustomerProfile.objects.get(user_id=AppointmentHeader.objects.get(
-    #             appointment_id=appointment_id).user_id).mobile_number))
-    # except Exception as e:
-    #     print(e)
-    #     print("MESSAGE SENT ERROR")
+    try:
+        subject = 'Payment for consultation'
+        html_message = render_to_string('payment_mail.html', {'appointment_id': appointment_id,
+            "doctor_name":get_users_name(doctor_id),"name":get_users_name(request.data['user_id']),
+            "specialization":get_doctor_specialization(doctor_id),'date':appointment_date,
+            "time":time_slot})
+        
+        user_mail_id=get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
+        # try:
+        #     sms_service.send_message(
+        #     "Hi There, Your Appointment #%s has been escalated on %s,%s Please refer mail for more details"
+        #     %(appointment_id,appointment_date,time_slot),
+        #         "+91" + str(CustomerProfile.objects.get(user_id=AppointmentHeader.objects.get(
+        #             appointment_id=appointment_id).user_id).mobile_number))
+        # except Exception as e:
+        #     print(e)
+        #     print("MESSAGE SENT ERROR")
 
-    plain_message = strip_tags(html_message)
-    from_email = 'Inticure <hello@inticure.com>'
-    to = user_mail_id
-    cc = 'nextbighealthcare@inticure.com'
-    mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
-
+        plain_message = strip_tags(html_message)
+        from_email = 'Inticure <hello@inticure.com>'
+        to = user_mail_id
+        cc = 'nextbighealthcare@inticure.com'
+        mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+    except Exception as e:
+        print(e)
+        print("Email Sending error")
     return Response({
         'response_code': 200,
         'status': 'Ok',
@@ -1554,29 +1571,36 @@ def order_escalate_view(request):
     # except Exception as e:
     #           print(e)
     #           print("MESSAGE SENT ERROR")
+    try:
+        subject = 'Yes! Your consultation is confirmed'
+        html_message = render_to_string('order_escalate.html', {'doctor_name': get_users_name(doctor_id),
+        'date':appointment_date,'time':time_slot,"specialization":get_doctor_specialization(doctor_id),
+        'name':get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id),
+        "meet_link":meet_link })
 
-    subject = 'Yes! Your consultation is confirmed'
-    html_message = render_to_string('order_escalate.html', {'doctor_name': get_users_name(doctor_id),
-    'date':appointment_date,'time':time_slot,"specialization":get_doctor_specialization(doctor_id),
-    'name':get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id),
-    "meet_link":meet_link })
+        plain_message = strip_tags(html_message)
+        from_email = 'wecare@inticure.com'
+        to = user_mail_id
+        cc = "nextbighealthcare@inticure.com"
+        mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+    except Exception as e:
+        print(e)
+        print("Email Sending error")
 
-    plain_message = strip_tags(html_message)
-    from_email = 'wecare@inticure.com'
-    to = user_mail_id
-    cc = "nextbighealthcare@inticure.com"
-    mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+    try:
+        subject = 'Appointment confirmed'
+        html_message = render_to_string('order_confirmation_doctor.html', {'doctor_name': get_users_name(doctor_id),
+        'date':appointment_date,'time':time_slot,"doctor_flag":2,"meet_link":meet_link,
+        'name':get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id) })
+        plain_message = strip_tags(html_message)
+        from_email = 'wecare@inticure.com'
+        to = doctor_email
+        cc = "nextbighealthcare@inticure.com"
+        mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+    except Exception as e:
+        print(e)
+        print("Email Sending error")
 
-    subject = 'Appointment confirmed'
-    html_message = render_to_string('order_confirmation_doctor.html', {'doctor_name': get_users_name(doctor_id),
-    'date':appointment_date,'time':time_slot,"doctor_flag":2,"meet_link":meet_link,
-    'name':get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id) })
-
-    plain_message = strip_tags(html_message)
-    from_email = 'wecare@inticure.com'
-    to = doctor_email
-    cc = "nextbighealthcare@inticure.com"
-    mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
     return Response({
         'response_code': 200,
         'status': 'Ok',
@@ -1697,26 +1721,32 @@ def senior_doctor_transfer_view(request):
     # except Exception as e:
     #           print(e)
     #           print("MESSAGE SENT ERROR")
-    subject = 'Order Transfer Update'
-    html_message = render_to_string('order_transfer.html', {'appointment_id': appointment_id,
-    'doctor':get_users_name(new_doctor_id),"doctor_flag":0,
-    'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id),
-    "meet_link":meet_link})
-    plain_message = strip_tags(html_message)
-    from_email = 'wecare@inticure.com'
-    cc = 'nextbighealthcare@inticure.com'
-    to =  get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
+    try:
+        subject = 'Order Transfer Update'
+        html_message = render_to_string('order_transfer.html', {'appointment_id': appointment_id,
+        'doctor':get_users_name(new_doctor_id),"doctor_flag":0,
+        'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id),
+        "meet_link":meet_link})
+        plain_message = strip_tags(html_message)
+        from_email = 'wecare@inticure.com'
+        cc = 'nextbighealthcare@inticure.com'
+        to =  get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
+        mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+    except Exception as e:
+        print(e)
+        print("Email Sending error")
 
-    mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
-
-    subject = 'Appointment Confirmed'
-    html_message = render_to_string('order_confirmation_doctor.html', {'date': appointment_date,"doctor_flag":2,
-    'name':get_users_name(new_doctor_id),"time":request.data['time_slot'],"meet_link":meet_link})
-    plain_message = strip_tags(html_message)
-    from_email = 'wecare@inticure.com'
-    to =  get_user_mail(new_doctor_id)
-
-    mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+    try:
+        subject = 'Appointment Confirmed'
+        html_message = render_to_string('order_confirmation_doctor.html', {'date': appointment_date,"doctor_flag":2,
+        'name':get_users_name(new_doctor_id),"time":request.data['time_slot'],"meet_link":meet_link})
+        plain_message = strip_tags(html_message)
+        from_email = 'wecare@inticure.com'
+        to =  get_user_mail(new_doctor_id)
+        mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+    except Exception as e:
+        print(e)
+        print("Email Sending error")
 
     return Response({
         'response_code': 200,
@@ -1918,26 +1948,32 @@ def junior_doctor_transfer_view(request):
                                          [{"email": user_email}, {"email": doctor_email}], start_time,
                                          end_time)
        AppointmentHeader.objects.filter(appointment_id=appointment_id).update(meeting_link=meet_link)
-
-       subject = 'Order Transfer Update'
-       html_message = render_to_string('order_transfer.html', {'appointment_id': appointment_id,
-       'doctor':get_users_name(random_id),
-       'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
-       plain_message = strip_tags(html_message)
-       from_email = 'wecare@inticure.com'
-       cc = 'nextbighealthcare@inticure.com'
-       to =  get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
-       mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
-
-       subject = 'Appointment Confirmed'
-       html_message = render_to_string('order_confirmation_doctor.html', {'date': appointment_date,"doctor_flag":1,
-       'doctor_name':get_users_name(random_id),"time":appointment_time,"meet_link":meet_link,
-       "name":get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
-       plain_message = strip_tags(html_message)
-       from_email = 'wecare@inticure.com'
-       to =  get_user_mail(random_id)
-        
-       mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+       try:
+        subject = 'Order Transfer Update'
+        html_message = render_to_string('order_transfer.html', {'appointment_id': appointment_id,
+        'doctor':get_users_name(random_id),
+        'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
+        plain_message = strip_tags(html_message)
+        from_email = 'wecare@inticure.com'
+        cc = 'nextbighealthcare@inticure.com'
+        to =  get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
+        mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+       except Exception as e:
+           print(e)
+           print("Email Sending error")
+    
+       try:
+        subject = 'Appointment Confirmed'
+        html_message = render_to_string('order_confirmation_doctor.html', {'date': appointment_date,"doctor_flag":1,
+        'doctor_name':get_users_name(random_id),"time":appointment_time,"meet_link":meet_link,
+        "name":get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
+        plain_message = strip_tags(html_message)
+        from_email = 'wecare@inticure.com'
+        to =  get_user_mail(random_id)
+        mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+       except Exception as e:
+           print(e)
+           print("Email Sending error")
 
        return Response({
         'response_code': 200,
@@ -1958,18 +1994,22 @@ def create_followup_reminder_view(request):
     reminder_serilazer = FollowUpReminderSerializer(data=request.data)
     if reminder_serilazer.is_valid():
         reminder_serilazer.save()
-        subject = 'Followup Booking Reminder'
-        html_message = render_to_string('followup_reminder.html', {
-        "specialization":get_doctor_specialization(
-            AppointmentHeader.objects.get(appointment_id=request.data['appointment_id']).senior_doctor),
-        'name':get_users_name(AppointmentHeader.objects.get(
-        appointment_id=request.data['appointment_id']).user_id)})
-        plain_message = strip_tags(html_message)
-        from_email = 'wecare@inticure.com'
-        cc = 'nextbighealthcare@inticure.com'
-        to = get_user_mail(AppointmentHeader.objects.get(appointment_id=request.data['appointment_id']).user_id)
+        try:
+            subject = 'Followup Booking Reminder'
+            html_message = render_to_string('followup_reminder.html', {
+            "specialization":get_doctor_specialization(
+                AppointmentHeader.objects.get(appointment_id=request.data['appointment_id']).senior_doctor),
+            'name':get_users_name(AppointmentHeader.objects.get(
+            appointment_id=request.data['appointment_id']).user_id)})
+            plain_message = strip_tags(html_message)
+            from_email = 'wecare@inticure.com'
+            cc = 'nextbighealthcare@inticure.com'
+            to = get_user_mail(AppointmentHeader.objects.get(appointment_id=request.data['appointment_id']).user_id)
+            mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+        except Exception as e:
+            print(e)
+            print("Email Sending error")
 
-        mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
         return Response({
             'response_code': 200,
             'status': 'Ok',
@@ -1998,28 +2038,36 @@ def create_discussion_view(request):
     if discussion_serializer.is_valid():
         discussion_serializer.save()
         if request.data['is_query']==1:
-             subject = 'Your patient needs your help'
-             html_message = render_to_string('order_discussion.html', {"doctor_flag":1,
-                'doctor_name':get_users_name(request.data['doctor_id']),
-                'name': get_users_name(AppointmentHeader.objects.get(
-                appointment_id=request.data['appointment_id']).user_id) })
-             plain_message = strip_tags(html_message)
-             from_email = 'wecare@inticure.com>'
-             to =  get_user_mail(request.data['doctor_id'])
-             cc = 'nextbighealthcare@inticure.com'
+             try:
+                subject = 'Your patient needs your help'
+                html_message = render_to_string('order_discussion.html', {"doctor_flag":1,
+                    'doctor_name':get_users_name(request.data['doctor_id']),
+                    'name': get_users_name(AppointmentHeader.objects.get(
+                    appointment_id=request.data['appointment_id']).user_id) })
+                plain_message = strip_tags(html_message)
+                from_email = 'wecare@inticure.com>'
+                to =  get_user_mail(request.data['doctor_id'])
+                cc = 'nextbighealthcare@inticure.com'
 
-             mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+                mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+             except Exception as e:
+                print(e)
+                print("Email Sending error")
         if request.data['is_reply']==1:
-             subject = 'You received a response!'
-             html_message = render_to_string('order_discussion.html', {"doctor_flag":0,
-                'name':get_users_name(AppointmentHeader.objects.get(
-             appointment_id=request.data['appointment_id']).user_id)})
-             plain_message = strip_tags(html_message)
-             from_email = 'wecare@inticure.com'
-             to =  get_user_mail(AppointmentHeader.objects.get(
-                appointment_id=request.data['appointment_id']).user_id)
-             cc = "nextbighealthcare@inticure.com"
-             mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+             try:
+                subject = 'You received a response!'
+                html_message = render_to_string('order_discussion.html', {"doctor_flag":0,
+                    'name':get_users_name(AppointmentHeader.objects.get(
+                appointment_id=request.data['appointment_id']).user_id)})
+                plain_message = strip_tags(html_message)
+                from_email = 'wecare@inticure.com'
+                to =  get_user_mail(AppointmentHeader.objects.get(
+                    appointment_id=request.data['appointment_id']).user_id)
+                cc = "nextbighealthcare@inticure.com"
+                mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+             except Exception as e:
+                print(e)
+                print("Email Sending error")
         # try:
         #         sms_service.send_message(
         #        "Hi There, Your Discussion on Appointment #%s has received a response! Please refer mail for more info"%(request.data['appointment_id']),
@@ -3629,26 +3677,30 @@ def appointment_schedule_view(request):
             appointment_id=appointment_id).update(appointment_status=request.data['appointment_status'])
         if request.data['appointment_status'] == 4:
             print("email-cust")
-            subject = 'Order Rescheduled'
-            html_message = render_to_string('order_reschedule.html', {'appointment_date': rescheduled_date,
-                                                                     'appointment_time': time_slot, 'doctor_flag': 0,
-                                                                     'email': get_user_mail(
-                                                                         AppointmentHeader.objects.get(
-                                                                             appointment_id=appointment_id).user_id)})
-            plain_message = strip_tags(html_message)
-            from_email = 'wecare@inticure.com'
-            cc = 'nextbighealthcare@inticure.com'
-            to = get_users_email(request.data['user_id'])
             try:
-                sms_service.send_message(
-                    "Hi There, Your Appointment #%s has been rescheduled to:%s,%s Please refer mail for more details"
-                    % (appointment_id, rescheduled_date, time_slot),
-                    "+91" + str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
+                subject = 'Order Rescheduled'
+                html_message = render_to_string('order_reschedule.html', {'appointment_date': rescheduled_date,
+                                                                        'appointment_time': time_slot, 'doctor_flag': 0,
+                                                                        'email': get_user_mail(
+                                                                            AppointmentHeader.objects.get(
+                                                                                appointment_id=appointment_id).user_id)})
+                plain_message = strip_tags(html_message)
+                from_email = 'wecare@inticure.com'
+                cc = 'nextbighealthcare@inticure.com'
+                to = get_users_email(request.data['user_id'])
+                try:
+                    sms_service.send_message(
+                        "Hi There, Your Appointment #%s has been rescheduled to:%s,%s Please refer mail for more details"
+                        % (appointment_id, rescheduled_date, time_slot),
+                        "+91" + str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
+                except Exception as e:
+                    print(e)
+                    print("MESSAGE SENT ERROR")
+
+                mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
             except Exception as e:
                 print(e)
-                print("MESSAGE SENT ERROR")
-
-            mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+                print("Email Sending error")
 
         if request.data['appointment_status'] == 7:
             print("email-doc")
@@ -3699,8 +3751,12 @@ def appointment_schedule_view(request):
                 #     print("MESSAGE SENT ERROR")
             except Exception as e:
                 print(e)
-            cc ='nextbighealthcare@inticure.com'
-            mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+            try:
+                cc ='nextbighealthcare@inticure.com'
+                mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+            except Exception as e:
+                print(e)
+                print("Email Sending error")
 
         # if request.data['appointment_status'] == 5:
         #     print("email-doc")

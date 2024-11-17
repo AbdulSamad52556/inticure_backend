@@ -304,16 +304,20 @@ def sign_in_otp_view(request):
                     'message': 'User Banned'},
                     status=status.HTTP_400_BAD_REQUEST)
             else:
-                print('invalid otp verification')
-                subject = 'Inticure OTP Verification'
-                html_message = render_to_string('email_otp.html', {'email':request.data['email'],
-                 "confirm":0,"OTP":OTP })
-                plain_message = strip_tags(html_message)
-                # plain_message="account-created"
-                from_email = 'wecare@inticure.com'
-                to = request.data['email']
-                cc = 'nextbighealthcare@inticure.com'
-                mail.send_mail(subject, plain_message, from_email, [to], [cc],html_message=html_message)
+                try:
+                    print('invalid otp verification')
+                    subject = 'Inticure OTP Verification'
+                    html_message = render_to_string('email_otp.html', {'email':request.data['email'],
+                    "confirm":0,"OTP":OTP })
+                    plain_message = strip_tags(html_message)
+                    # plain_message="account-created"
+                    from_email = 'wecare@inticure.com'
+                    to = request.data['email']
+                    cc = 'nextbighealthcare@inticure.com'
+                    mail.send_mail(subject, plain_message, from_email, [to], [cc],html_message=html_message)
+                except Exception as e:
+                    print(e)
+                    print("Email Sending error")
                 return Response({
                  'response_code': 200,
                     'status': 'Success',
@@ -364,15 +368,20 @@ def sign_in_otp_view(request):
                 EmailOtpVerify.objects.get(email=request.data['email'],otp=request.data['otp']).delete()
                 user_id=User.objects.get(email=request.data['email']).id
                 
-                subject = 'Login Confirmation'
-                html_message = render_to_string('email_otp.html', {'email':request.data['email'],
-                 "confirm":1 })
-                plain_message = strip_tags(html_message)
-                # plain_message="account-created"
-                from_email = 'wecare@inticure.com'
-                to = request.data['email']
-                cc = 'nextbighealthcare@inticure.com'
-                mail.send_mail(subject, plain_message, from_email, [to], [cc],html_message=html_message)
+                try:
+                    subject = 'Login Confirmation'
+                    html_message = render_to_string('email_otp.html', {'email':request.data['email'],
+                    "confirm":1 })
+                    plain_message = strip_tags(html_message)
+                    # plain_message="account-created"
+                    from_email = 'wecare@inticure.com'
+                    to = request.data['email']
+                    cc = 'nextbighealthcare@inticure.com'
+                    mail.send_mail(subject, plain_message, from_email, [to], [cc],html_message=html_message)
+                except Exception as e:
+                    print(e)
+                    print("Email Sending error")
+
             try:
                is_seniors=DoctorProfiles.objects.get(doctor_flag='senior',user_id=user_id)
                id_doc=is_seniors.user_id
@@ -1147,7 +1156,11 @@ def report_customer_view(request):
                 to =  user_mail
                 cc = 'nextbighealthcare@inticure.com'
                 from_email = 'wecare@inticure.com'
-                mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+                try:
+                    mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+                except Exception as e:
+                    print(e)
+                    print("Email Sending error")
                 user=User.objects.get(id=request.data['customer_id'])
                 user.is_active= False
                 user.save()
@@ -1159,29 +1172,38 @@ def report_customer_view(request):
             except Exception as e:
                 print("report_customer_except",e)  
         else:
-            subject = 'Oh no…You have been reported'
-            html_message = render_to_string('report_customer.html', {"doctor_flag":0,
-                'name':get_users_name(request.data['customer_id'])})
-            plain_message = strip_tags(html_message)
-            from_email = 'wecare@inticure.com'
-            cc = "nextbighealthcare@inticure.com"
-            to =  user_mail
-            mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+            try:
+                subject = 'Oh no…You have been reported'
+                html_message = render_to_string('report_customer.html', {"doctor_flag":0,
+                    'name':get_users_name(request.data['customer_id'])})
+                plain_message = strip_tags(html_message)
+                from_email = 'wecare@inticure.com'
+                cc = "nextbighealthcare@inticure.com"
+                to =  user_mail
+                mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+            except Exception as e:
+                print(e)
+                print("Email Sending error")
+
             specialization=DoctorProfiles.objects.get(user_id=request.data['doctor_id']).specialization
             if specialization=="junior":
                 salutation="Dr"
             else:
                 salutation=""
-            subject = 'Action initiated against your patient'
-            html_message = render_to_string('report_customer.html', {"doctor_flag":1,
-            "name":get_users_name(request.data['customer_id']),
-            'doctor_name':get_users_name(request.data['doctor_id']),"salutation":salutation })
-            plain_message = strip_tags(html_message)
-            from_email = 'wecare@inticure.com'
-            to =  get_user_mail(request.data['doctor_id'])
-            cc = "nextbighealthcare@inticure.com"
-            mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
- 
+            
+            try:
+                subject = 'Action initiated against your patient'
+                html_message = render_to_string('report_customer.html', {"doctor_flag":1,
+                "name":get_users_name(request.data['customer_id']),
+                'doctor_name':get_users_name(request.data['doctor_id']),"salutation":salutation })
+                plain_message = strip_tags(html_message)
+                from_email = 'wecare@inticure.com'
+                to =  get_user_mail(request.data['doctor_id'])
+                cc = "nextbighealthcare@inticure.com"
+                mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+            except Exception as e:
+                print(e)
+                print("Email Sending error")
     else:
        report_count+=1
        ReportCustomer.objects.create(
@@ -1210,14 +1232,18 @@ def forgot_password_view(request):
         'status': 'Failed',
         'message':'Invalid Email' })
 
-        subject = 'Password Reset'
-        html_message = render_to_string('forget_password.html', {"email":request.data['email'],
-        "encrypted_id":encrypted_user_id.decode()})
-        plain_message = strip_tags(html_message)
-        from_email = 'wecare@inticure.com'
-        to = request.data['email']
-        cc = "nextbighealthcare@inticure.com"
-        mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+        try:
+            subject = 'Password Reset'
+            html_message = render_to_string('forget_password.html', {"email":request.data['email'],
+            "encrypted_id":encrypted_user_id.decode()})
+            plain_message = strip_tags(html_message)
+            from_email = 'wecare@inticure.com'
+            to = request.data['email']
+            cc = "nextbighealthcare@inticure.com"
+            mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+        except Exception as e:
+            print(e)
+            print("Email Sending error")
 
         return Response({
         'response_code': 200,
@@ -1257,7 +1283,13 @@ def application_action_view(request):
           to = get_user_mail(user_id)
           cc = "nextbighealthcare@inticure.com"
           print("here")
-          mail.send_mail(subject, plain_message, from_email, [to],[cc],html_message=html_message)
+
+          try:
+            mail.send_mail(subject, plain_message, from_email, [to],[cc],html_message=html_message)
+          except Exception as e:
+            print(e)
+            print("Email Sending error")
+
           return Response({
         'response_code': 200,
         'status': 'Ok',
@@ -1672,15 +1704,21 @@ class RefundViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 print(e)
                 customer_id=None
-            subject = 'You Refund have been Processed'
-            html_message = render_to_string('refund_completed.html', {"doctor_flag":0,
-                'name':get_users_name(customer_id)})
-            plain_message = strip_tags(html_message)
-            from_email = 'wecare@inticure.com'
-            cc = "nextbighealthcare@inticure.com"
-            to =  get_user_mail(customer_id)
-            print("here..........")
-            mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+
+            try:
+                subject = 'You Refund have been Processed'
+                html_message = render_to_string('refund_completed.html', {"doctor_flag":0,
+                    'name':get_users_name(customer_id)})
+                plain_message = strip_tags(html_message)
+                from_email = 'wecare@inticure.com'
+                cc = "nextbighealthcare@inticure.com"
+                to =  get_user_mail(customer_id)
+                print("here..........")
+                mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+            except Exception as e:
+                print(e)
+                print("Email Sending error")
+
         Refund.objects.filter(pk=self.kwargs['pk']).update(**data)
         return Response(
                 {'response_code': 200,
