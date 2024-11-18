@@ -107,23 +107,23 @@ WSGI_APPLICATION = 'inticure_backend.wsgi.application'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.mysql',
-    #     'NAME': 'inticure',
-    #     'USER': 'root',
-    #     'PASSWORD': 'PHW#84#jeor',
-    #     'HOST': 'localhost',
-    #     'PORT': '3306',
-    # }
-    
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'inticure',
-        'USER': 'inticure',
-        'PASSWORD':'inticure',
-        'HOST': 'mysql',
+        'USER': 'root',
+        'PASSWORD': 'PHW#84#jeor',
+        'HOST': 'localhost',
         'PORT': '3306',
     }
+    
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.mysql',
+    #     'NAME': 'inticure',
+    #     'USER': 'inticure',
+    #     'PASSWORD':'inticure',
+    #     'HOST': 'mysql',
+    #     'PORT': '3306',
+    # }
     
 }
 

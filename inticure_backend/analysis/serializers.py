@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from analysis.models import Category,Questionnaire,Options,Invoices,AnswerType
+from analysis.models import EmailOtpVerify
 
 class CategorySerializer(serializers.ModelSerializer):
     image = serializers.ImageField(allow_null=True,required=False)

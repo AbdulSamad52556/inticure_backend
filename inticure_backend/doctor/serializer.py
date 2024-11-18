@@ -2,17 +2,33 @@ from dataclasses import fields
 from sqlite3 import Time
 from rest_framework import serializers,exceptions
 
-from analysis.models import AppointmentHeader, AppointmentQuestions, AppointmentAnswers
+from analysis.models import AppointmentHeader, AppointmentQuestions, AppointmentAnswers, EmailOtpVerify
+from customer.models import CustomerProfile
+from django.contrib.auth.models import User
 from .models import CommonFileUploader, DoctorAvailableDates, DoctorAvailableTimeslots, Obeservations, Prescriptions, PrescriptionsDetail, AnalysisInfo, \
     DoctorProfiles, Timeslots, DoctorSpecializations, AppointmentTransferHistory, FollowUpReminder, \
     AppointmentDiscussion,Time,Medications,ConsumptionTime,DoctorCalenderUpdate,PatientMedicalHistory,\
     DoctorAddedTimeSlots,SeniorDoctorAvailableTimeSLots,JuniorDoctorSlots,EscalatedAppointment
 
+class CustomerProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerProfile
+        fields = ['confirmation_choice', 'confirmation_email', 'whatsapp_contact']
 
 class AppointmentHeaderSerializer(serializers.ModelSerializer):
+    customer_details = serializers.SerializerMethodField()  
+
     class Meta:
         model = AppointmentHeader
-        fields = "__all__"
+        fields = "__all__" 
+
+    def get_customer_details(self, obj):
+        try:
+            customer = CustomerProfile.objects.get(user_id=obj.user_id)
+            return CustomerProfileSerializer(customer).data
+        except CustomerProfile.DoesNotExist:
+            return None 
+
 
 
 class AppointmentQuestionsSerializer(serializers.ModelSerializer):

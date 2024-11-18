@@ -24,7 +24,7 @@ from rest_framework import viewsets, status, permissions, views
 import datetime
 from datetime import timedelta,datetime as dt
 from django.db import IntegrityError
-from analysis.models import AppointmentHeader, AppointmentQuestions, AppointmentAnswers,Invoices
+from analysis.models import AppointmentHeader, AppointmentQuestions, AppointmentAnswers,Invoices, EmailOtpVerify
 from common.filter import custom_filter
 from conf_files.google_meet import generate_google_meet
 from .serializer import AppointmentHeaderSerializer, AppointmentQuestionsSerializer, \
@@ -223,6 +223,32 @@ def is_dr_blocked(request):
         return Response({
             'response_code': 400,
             'status': 'blocked'})
+
+@api_view(['POST'])
+def login_from_admin(request):
+    doctor_email = request.data['doctor_email']
+    print(doctor_email)
+    try:
+        otp = EmailOtpVerify.objects.get(email = doctor_email)
+        print(otp.otp)
+    except Exception as e:
+        print(e)
+        return Response({
+            'response_code': 400,
+            'status': 'not available'})
+    try:
+        subject = f"{doctor_email}'s OTP Code"
+        message = f"OTP for {doctor_email}is : {otp.otp}"
+        email_from = 'wecare@inticure.com'
+        recipient_list = ['nextbighealthcare@inticure.com']
+        mail.send_mail(subject, message, email_from, recipient_list)
+    except Exception as e:
+        print(e)
+        print("Email Sending error")
+
+    return Response({
+        'response_code': 200,
+        'status': 'Ok'})
 
 """View to list appointments"""
 @api_view(['POST'])
