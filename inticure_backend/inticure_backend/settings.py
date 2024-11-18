@@ -32,6 +32,24 @@ CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = False
 CORS_ALLOW_HEADERS = ['*']
 # Application definition
+CSRF_TRUSTED_ORIGINS = [
+    'https://inticure.com',
+    'https://admin.inticure.com',
+    'https://analysis.inticure.com',
+    'https://customers.inticure.com',
+    'https://doctor.inticure.com',
+    'https://inticure.online',
+    'https://admin.inticure.online',
+    'https://analysis.inticure.online',
+    'https://customers.inticure.online',
+    'https://doctor.inticure.online',
+]
+
+
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 90  # 90 days in seconds
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_SECURE = True
 
 INSTALLED_APPS = [
     'corsheaders',
@@ -52,15 +70,17 @@ MEDIA_URL='/media/'
 MEDIA_ROOT=os.path.join(BASE_DIR,'media')
 
 MIDDLEWARE = [
+    'django.middleware.csrf.CsrfViewMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CSRF_COOKIE_SECURE = True
 
 ROOT_URLCONF = 'inticure_backend.urls'
 
@@ -208,3 +228,4 @@ TWILIO_NUMBER = "+1205890-2416"
 CRON_CLASSES = [
     'common.cron.SendEmails',
 ]
+

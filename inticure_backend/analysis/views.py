@@ -645,6 +645,7 @@ def create_user_view(request):
             CustomerProfile.objects.filter(user_id = user_id).update(whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Whats App')
         else:
             user_id = create_user(data['email'], data['first_name'],data['last_name'])
+            CustomerProfile.objects.filter(user_id = user_id).update(confirmation_email = request.data['email_contact'], confirmation_choice = 'Email')
     else:
         user_id = create_user_mobile_num(request.data[''])
     return Response({

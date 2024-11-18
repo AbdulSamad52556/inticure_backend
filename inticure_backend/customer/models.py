@@ -16,6 +16,7 @@ class CustomerProfile(models.Model):
     residence_location = models.CharField(max_length = 30, null = True)
     whatsapp_contact = models.BigIntegerField(blank=True, null=True)
     confirmation_choice = models.CharField(max_length= 30, null=True)
+    confirmation_email = models.CharField(max_length=255, default='', blank=True)
     
 class AppointmentRatings(models.Model):
     appointment_id=models.BigIntegerField(null=True)
