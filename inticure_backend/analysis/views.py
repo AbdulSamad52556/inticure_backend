@@ -387,7 +387,12 @@ def otp_verify_view(request):
                     status=status.HTTP_409_CONFLICT)
         except:
            OTP=generateOTP()
-           EmailOtpVerify.objects.create(email=request.data['email'],otp=OTP)
+           try:
+            email_otp = EmailOtpVerify.objects.get(email=request.data['email'])
+            email_otp.otp = OTP
+            email_otp.save()
+           except:
+            EmailOtpVerify.objects.create(email=request.data['email'],otp=OTP)
            print("OTP",OTP)
         #    subject = 'Inticure OTP Verification'
         #    html_message = render_to_string('email_otp.html', {'email':request.data['email'],
@@ -440,7 +445,7 @@ def otp_verify_view(request):
             try: 
                 print(request.data['otp'])
                 EmailOtpVerify.objects.get(email=request.data['email'],otp=request.data['otp'])
-                EmailOtpVerify.objects.get(email=request.data['email'],otp=request.data['otp']).delete()
+                # EmailOtpVerify.objects.get(email=request.data['email'],otp=request.data['otp']).delete()
                 try:
                     subject = 'LogIn Confirmation'
                     html_message = render_to_string('email_otp.html', {'email':request.data['email'],
@@ -1182,8 +1187,8 @@ def followup_booking_view(request):
             meet_link = generate_google_meet("Inticure,Follow Up Appointment", "",
                                          [{"email": user_email}, {"email": doctor_email}], start_time,
                                          end_time)
-            AppointmentHeader.objects.filter(appointment_id=appointment_id).update(senior_meeting_link=meet_link,appointment_status = 1)
-            AppointmentHeader.objects.filter(appointment_id=appointment.appointment_id).update(senior_meeting_link=meet_link,appointment_status = 1)
+            AppointmentHeader.objects.filter(appointment_id=appointment_id).update(senior_meeting_link=meet_link)
+            AppointmentHeader.objects.filter(appointment_id=appointment.appointment_id).update(senior_meeting_link=meet_link)
 
             try:
                 subject = 'Payment for consultation'
@@ -1261,8 +1266,8 @@ def followup_booking_view(request):
         meet_link = generate_google_meet("Inticure,Follow Up Appointment", "",
                                          [{"email": user_email}, {"email": doctor_email}], start_time,
                                          end_time)
-        AppointmentHeader.objects.filter(appointment_id=appointment_id).update(senior_meeting_link=meet_link,appointment_status = 1)
-        AppointmentHeader.objects.filter(appointment_id=appointment.appointment_id).update(senior_meeting_link=meet_link,appointment_status = 1)
+        AppointmentHeader.objects.filter(appointment_id=appointment_id).update(senior_meeting_link=meet_link)
+        AppointmentHeader.objects.filter(appointment_id=appointment.appointment_id).update(senior_meeting_link=meet_link)
         # try:
         #    sms_service.send_message(
         #     "Hi There, Your Followup Appointment has been confirmed on: %s %s Please refer mail for more details"%(appointment_date,start_time),

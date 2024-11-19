@@ -358,14 +358,14 @@ def sign_in_otp_view(request):
         try:
             if "mobile_num" in request.data and request.data['mobile_num']!="":
                OtpVerify.objects.get(mobile_number=request.data['mobile_num'],otp=request.data['otp'])
-               OtpVerify.objects.get(mobile_number=request.data['mobile_num'],otp=request.data['otp']).delete()
+            #    OtpVerify.objects.get(mobile_number=request.data['mobile_num'],otp=request.data['otp']).delete()
                try:
                   user_id=CustomerProfile.objects.get(mobile_number=request.data['mobile_num']).user_id
                except:
                   user_id=DoctorProfiles.objects.get(mobile_number=request.data['mobile_num']).user_id
             if "email" in request.data and request.data['email']!="":
                 EmailOtpVerify.objects.get(email=request.data['email'],otp=request.data['otp'])
-                EmailOtpVerify.objects.get(email=request.data['email'],otp=request.data['otp']).delete()
+                # EmailOtpVerify.objects.get(email=request.data['email'],otp=request.data['otp']).delete()
                 user_id=User.objects.get(email=request.data['email']).id
                 
                 try:
