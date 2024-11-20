@@ -569,7 +569,7 @@ def appointment_completed(request):
     data = request.data
     print(data)
     try:
-        appointment = AppointmentHeader.objects.filter(appointment_id = data['appointment_id']).update(appointment_status=13)
+        appointment = AppointmentHeader.objects.filter(appointment_id = data['appointment_id']).update(appointment_status=6)
         return Response({
             'response_code': 200,
             'status': 'Ok',
@@ -587,8 +587,30 @@ def timeslots(request):
     data = request.data
     print(data)
     filter ={}
-   
-    doctors = SeniorDoctorAvailableTimeSLots.objects.filter(date = request.data['date'], time_slot = data['time_slot'], is_active = 0, end_time = request.data['end_time']).values_list('doctor_id',flat=True)
+    if 'this_doctor' in request.data:
+        # Ensure 'this_doctor' is treated as a list
+        exclude_doctors = request.data['this_doctor']
+        
+        # Convert to a list of integers if needed
+        if isinstance(exclude_doctors, str):
+            exclude_doctors = [int(exclude_doctors)]  # Convert single doctor ID to a list
+        
+        doctors = SeniorDoctorAvailableTimeSLots.objects.filter(
+            date=request.data['date'],
+            time_slot=request.data['time_slot'],
+            end_time=request.data['end_time'],
+            is_active=0
+        ).exclude(
+            doctor_id__in=exclude_doctors
+        ).values_list('doctor_id', flat=True)
+    else:
+        doctors = SeniorDoctorAvailableTimeSLots.objects.filter(
+            date=request.data['date'],
+            time_slot=request.data['time_slot'],
+            end_time=request.data['end_time'],
+            is_active=0
+        ).values_list('doctor_id', flat=True)
+
     print(doctors)
     matching_user_ids = DoctorLanguages.objects.filter(doctor_id__in=doctors, languages = request.data['language']).values_list('doctor_id', flat=True)
     if len(matching_user_ids) == 0:
@@ -608,7 +630,7 @@ def timeslots(request):
     dr_details['specialization'] = available_dr.specialization
     dr_details['bio'] = available_dr.doctor_bio
     try:
-        location = Locations.objects.get(location = request.data['user_location'])
+        location = Locations.objects.get(location = request.data['country'])
     except Exception as e:
         location = Locations.objects.get(location = 'USA')
     print(location)
@@ -2279,6 +2301,8 @@ def specialization_timeslot_view(request):
     preferred = True
     calculated_list=[]
     duration=60
+    if 'this_doctor' in request.data:
+        this_doctor = request.data['this_doctor']
     if 'doctor' in request.data:
         request.data['doctor_flag'] = request.data['doctor']
   
@@ -2286,10 +2310,17 @@ def specialization_timeslot_view(request):
             doctor_id = request.data['doctor_id']
             print("doctor_id","doctor_id",doctor_id)
     if request.data['language_pref'] != 'No Preference' and request.data['language_pref'] != "":
-        user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
+        if 'this_doctor' in request.data:
+            user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+        else:
+            user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
         print('2107 ',user_ids)
         if len(user_ids) == 0:
-            user_ids=DoctorLanguages.objects.filter(languages='English').values_list('doctor_id',flat=True)
+            if 'this_doctor' in request.data:
+                user_ids=DoctorLanguages.objects.filter(languages='English').exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+            else:
+                user_ids=DoctorLanguages.objects.filter(languages='English').values_list('doctor_id',flat=True)
+
         filter['user_id__in']=user_ids
         #   filter['user_id__in']=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
     if 'gender' in request.data and request.data['gender'] != ""  :
@@ -2322,22 +2353,38 @@ def specialization_timeslot_view(request):
     if  "appointment_id" not in request.data or request.data['appointment_id'] == "":
         print("appointment id is null")
         if 'language_pref' in request.data and request.data['language_pref'] != "":
-            user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
+            if 'this_doctor' in request.data:
+                user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+            else:
+                user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
         else:
-            user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
+            if 'this_doctor' in request.data:
+                user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+            else:
+                user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
             preferred = False
 
         print('2140 ',user_ids)
         filter['user_id__in']=user_ids
         print(filter)
-        doctor_id = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+        if 'this_doctor' in request.data:
+            doctor_id = custom_filter(DoctorProfiles, filter).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+        else:
+            doctor_id = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
         if len(doctor_id) == 0:
             del filter['location']
-            doctor_id = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+            if 'this_doctor' in request.data:
+                doctor_id = custom_filter(DoctorProfiles, filter).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+            else:
+                doctor_id = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+
         print("here",doctor_id)
         if len(doctor_id) == 0:
             filter2 = {}
-            user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
+            if 'this_doctor' in request.data:
+                user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+            else:
+                user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
             preferred = False
             filter2['user_id__in']=user_ids
             print(user_ids)
@@ -2370,24 +2417,43 @@ def specialization_timeslot_view(request):
             if  "appointment_id" not in request.data or request.data['appointment_id'] == "":
                 print("appointment id is null")
                 if 'language_pref' in request.data and request.data['language_pref'] != "":
-                    user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
+                    if 'this_doctor' in request.data:
+                        user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+                    else:
+                        user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
                 else:
-                    user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
+                    if 'this_doctor' in request.data:
+                        user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+                    else:
+                        user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
+
                     preferred = False
                 print('2173 ',user_ids)
                 filter2['user_id__in']=user_ids
                 print(filter2)
-                doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
+                if 'this_doctor' in request.data:
+                    doctor_id = custom_filter(DoctorProfiles, filter2).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+                else:
+                    doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
                 print("here2",doctor_id)
                 if len(doctor_id) == 0:
                     del filter2['location']
-                    doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
+                    if 'this_doctor' in request.data:
+                        doctor_id = custom_filter(DoctorProfiles, filter2).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+                    else:
+                        doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
                     print("here22",doctor_id)
                     if len(doctor_id) == 0:
-                        user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
+                        if 'this_doctor' in request.data:
+                            user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+                        else:
+                            user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
                         preferred = False
                         filter2['user_id__in']=user_ids
-                        doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
+                        if 'this_doctor' in request.data:
+                            doctor_id = custom_filter(DoctorProfiles, filter2).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+                        else:
+                            doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
                 print("here23",doctor_id)
             no_time_slots = True
         objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=doctor_id,
@@ -2434,12 +2500,23 @@ def specialization_timeslot_view(request):
                   
             # print("is_transfer is o")
             print(filter)
-            doctor_ids = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+
+            if 'this_doctor' in request.data:
+                doctor_ids = custom_filter(DoctorProfiles, filter).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+            else:
+                doctor_ids = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+
             if len(doctor_ids) == 0:
                 preferred = False
-                user_ids=DoctorLanguages.objects.filter(languages='English').values_list('doctor_id',flat=True)
+                if 'this_doctor' in request.data:
+                    user_ids=DoctorLanguages.objects.filter(languages='English').exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+                else:
+                    user_ids=DoctorLanguages.objects.filter(languages='English').values_list('doctor_id',flat=True)
                 filter['user_id__in']=user_ids
-                doctor_ids = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+                if 'this_doctor' in request.data:
+                    doctor_ids = custom_filter(DoctorProfiles, filter).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+                else:
+                    doctor_ids = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
             print(doctor_ids)
             objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=doctor_ids,
                         date__gte=datetime.datetime.now().date() + timedelta(days=1))
@@ -2454,7 +2531,17 @@ def specialization_timeslot_view(request):
         print(working_hour)
         appointment_date_=datetime.datetime.strptime(working_hour['date'],"%Y-%m-%d")
         print(appointment_date_)
-        slots_available=SeniorDoctorAvailableTimeSLotsSerializer(SeniorDoctorAvailableTimeSLots.objects.filter(
+        if 'this_doctor' in request.data:
+            slots_available = SeniorDoctorAvailableTimeSLotsSerializer(
+                SeniorDoctorAvailableTimeSLots.objects.filter(
+                    date=appointment_date_,
+                    doctor_id=working_hour['doctor_id'],
+                    is_active=0
+                ).exclude(doctor_id__in=[request.data['this_doctor']]),
+                many=True
+            ).data
+        else:
+            slots_available=SeniorDoctorAvailableTimeSLotsSerializer(SeniorDoctorAvailableTimeSLots.objects.filter(
                 date=appointment_date_,doctor_id=working_hour['doctor_id'],is_active=0),many=True).data
         print(slots_available)
         time_solt_data = {'date':working_hour['date'],'timeslot': slots_available}

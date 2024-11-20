@@ -564,7 +564,7 @@ def assign_junior_doctor(request):
                     AppointmentHeader.objects.filter(
                         appointment_date=appointment_date,
                         appointment_time_slot_id=appointment_time
-                    ).exclude(appointment_id=excluded_appointment_id)
+                    ).exclude(appointment_id__in=[excluded_appointment_id])
                     .values_list('junior_doctor', flat=True)
                 )
 
