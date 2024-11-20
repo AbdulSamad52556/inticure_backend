@@ -60,8 +60,7 @@ sms_service=MessageClient()
 def get_patient_medical_details(user_id,appointment_id):
     try:
         patient_history= PatientMedicalHistorySerializer(
-                        PatientMedicalHistory.objects.get(user_id=user_id, appointment_id = appointment_id)).data
-        # print(patient_history,"1")
+            PatientMedicalHistory.objects.get(user_id=user_id)).data
     except Exception as e:
         # print("Exception",e)
         patient_history=None
@@ -1033,11 +1032,13 @@ def prescriptions_text_view(request):
         prescriptions_text=request.data['prescriptions_text']
         doctor_id=request.data['doctor_id']
         tests_to_be_done=request.data['tests_to_be_done']
+        prescription_validation = request.data['prescription_validation']
         data={
         "appointment_id":appointment_id,
         "prescriptions_text":prescriptions_text,
         "doctor_id":doctor_id,
-        "tests_to_be_done":tests_to_be_done
+        "tests_to_be_done":tests_to_be_done,
+        "prescription_validation":prescription_validation
     }
         serializer=PrescriptionTextSerializer(data=data)
         #  print(serializer.id)
@@ -2415,7 +2416,11 @@ def specialization_timeslot_view(request):
                     specialization=DoctorProfiles.objects.get(user_id=doctor_id).specialization
                     # duration=DoctorSpecializations.objects.get(specialization=specialization).time_duration
                     filter['specialization']=specialization
-                    user_ids=DoctorLanguages.objects.filter(languages=doctor_qset.language_pref).values_list('doctor_id',flat=True)
+                    try:
+                        user_ids=DoctorLanguages.objects.filter(languages=doctor_qset.language_pref, doctor_id=request.data['user_id']).values_list('doctor_id',flat=True)
+                    except:
+                        user_ids=DoctorLanguages.objects.filter(languages=doctor_qset.language_pref).values_list('doctor_id',flat=True)
+
                     print(user_ids)
                     if len(user_ids) == 0:
                             user_ids=DoctorLanguages.objects.filter(languages='English').values_list('doctor_id',flat=True)

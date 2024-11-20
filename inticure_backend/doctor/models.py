@@ -75,6 +75,7 @@ class PrescriptionsDetail(models.Model):
     uploaded_date=models.DateField(auto_now=True)
     prescriptions_text=models.TextField(null=True)
     tests_to_be_done=models.TextField(null=True)
+    prescription_validation=models.CharField(max_length=30,null=True)
 class Medications(models.Model):
     medication_id=models.BigAutoField(primary_key=True)
     prescription_id=models.BigIntegerField()

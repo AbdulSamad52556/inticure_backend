@@ -564,7 +564,7 @@ def assign_junior_doctor(request):
                     AppointmentHeader.objects.filter(
                         appointment_date=appointment_date,
                         appointment_time_slot_id=appointment_time
-                    ).exclude(appointment_id=excluded_appointment_id)  # Exclude the specific appointment ID
+                    ).exclude(appointment_id=excluded_appointment_id)
                     .values_list('junior_doctor', flat=True)
                 )
 
@@ -712,7 +712,7 @@ def analysis_submit_view(request):
                     'response_code': 400,
                     'status': 'Failed'},
                     status=status.HTTP_400_BAD_REQUEST)
-             print(user_id)
+             print(user_id)#177
              other_gender=""
              customer_message=""
              mobile_num=0
@@ -1278,7 +1278,7 @@ def followup_booking_view(request):
         doctor_bio,profile_pic=get_doctor_bio(doctor_id)
 
         try:
-            subject = ' Yes! Your follow-up consultation is confirmed'
+            subject = ' Yes! Your follow-up consultation is scheduled'
             html_message = render_to_string('order_followup.html', {'appointment_id': appointment.appointment_id,
             "doctor_name":get_users_name(doctor_id),"name":get_users_name(request.data['user_id']),
             "meet_link":meet_link,"specialization":get_doctor_specialization(doctor_id),'date':appointment_date,
