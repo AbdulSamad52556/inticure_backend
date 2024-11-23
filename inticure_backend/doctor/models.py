@@ -44,7 +44,7 @@ class AppointmentReshedule(models.Model):
     appointment_id=models.BigIntegerField()
     user_id=models.BigIntegerField()
     reschedule_count=models.IntegerField(default=0)
-    time_slot=models.CharField(max_length=30,null=True)
+    time_slot=models.CharField(max_length=50,null=True)
     rescheduled_time=models.TimeField(null=True)
     rescheduled_date=models.DateField(null=True)
     doctor_id=models.BigIntegerField(null=True)

@@ -399,9 +399,9 @@ def appointment_list_view(request):
                 prescriptions['medicines']=medicines
                 try:
 
-                   prescriptions['qualification']=DoctorProfiles.objects.filter(
+                   prescriptions['qualification']=DoctorProfiles.objects.get(
                     user_id=prescriptions['doctor_id']).qualification
-                   prescriptions['address']=DoctorProfiles.objects.filter(
+                   prescriptions['address']=DoctorProfiles.objects.get(
                     user_id=prescriptions['doctor_id']).address
                 except Exception as e:
                     prescriptions['qualification']=""
@@ -419,9 +419,9 @@ def appointment_list_view(request):
                 prescription_id=prescriptions['id']),many=True).data
                 prescriptions['medicines']=medicines
                 try:
-                    prescriptions['qualification']=DoctorProfiles.objects.filter(
+                    prescriptions['qualification']=DoctorProfiles.objects.get(
                     user_id=prescriptions['doctor_id']).qualification
-                    prescriptions['address']=DoctorProfiles.objects.filter(
+                    prescriptions['address']=DoctorProfiles.objects.get(
                     user_id=prescriptions['doctor_id']).address
                 except Exception as e:
                     prescriptions['qualification']=""
@@ -2614,6 +2614,7 @@ def specialization_timeslot_view(request):
 
 @api_view(['POST'])
 def specialization_timeslot_view_reschedule(request):
+    print('specialization_timeslot_view_reschedule')
     print(request.data)
     timeslot=list()
     try:
@@ -3562,9 +3563,9 @@ def appointment_detail_view(request):
                 prescriptions['medicines']=medicines
                 try:
 
-                   prescriptions['qualification']=DoctorProfiles.objects.filter(
+                   prescriptions['qualification']=DoctorProfiles.objects.get(
                     user_id=prescriptions['doctor_id']).qualification
-                   prescriptions['address']=DoctorProfiles.objects.filter(
+                   prescriptions['address']=DoctorProfiles.objects.get(
                     user_id=prescriptions['doctor_id']).address
                 except Exception as e:
                     print(e)
@@ -3584,9 +3585,9 @@ def appointment_detail_view(request):
                 prescriptions['medicines']=medicines
                 try:
 
-                   prescriptions['qualification']=DoctorProfiles.objects.filter(
+                   prescriptions['qualification']=DoctorProfiles.objects.get(
                     user_id=prescriptions['doctor_id']).qualification
-                   prescriptions['address']=DoctorProfiles.objects.filter(
+                   prescriptions['address']=DoctorProfiles.objects.get(
                     user_id=prescriptions['doctor_id']).address
                 except Exception as e:
                     print(e)
@@ -3772,9 +3773,46 @@ def appointment_schedule_view(request):
                     sr_rescheduled_date=rescheduled_date, sr_rescheduled_time=time_slot, reschedule_count=count)
             if doc_flag == "junior":
                 print("jr flag")
-                AppointmentReshedule.objects.filter(appointment_id=appointment_id).update(
-                    user_id=request.data['user_id'], appointment_id=appointment_id,
-                    rescheduled_date=rescheduled_date, time_slot=time_slot, reschedule_count=count)
+                try:
+                    print(appointment_id)  # Debug: Check appointment ID
+                    print(rescheduled_date)  # Debug: Check date string
+                    print(time_slot)  # Debug: Check time string
+
+                    # Convert rescheduled_date
+                    # if isinstance(rescheduled_date, str):
+                    #     try:
+                    #         rescheduled_date = datetime.datetime.strptime(rescheduled_date, "%Y-%m-%d").date()
+                    #     except ValueError as e:
+                    #         print(f"Error converting rescheduled_date: {e}")
+                    #         raise
+
+                    # # Convert time_slot
+                    # if isinstance(time_slot, str):
+                    #     try:
+                    #         time_slot = datetime.datetime.strptime(time_slot, "%I:%M%p").time()
+                    #     except ValueError as e:
+                    #         print(f"Error converting time_slot: {e}")
+                    #         raise
+
+                    # Debug: Check if appointment exists
+                    reschedule_instance = AppointmentReshedule.objects.filter(appointment_id=appointment_id).first()
+                    if not reschedule_instance:
+                        print(f"No AppointmentReshedule found for appointment_id: {appointment_id}")
+                        return
+
+                    # Perform the update
+                    AppointmentReshedule.objects.filter(appointment_id=appointment_id).update(
+                        user_id=request.data['user_id'],
+                        appointment_id=appointment_id,
+                        rescheduled_date=rescheduled_date,
+                        time_slot=time_slot,  # Ensure string storage
+                        reschedule_count=count
+                    )
+                    print("AppointmentReshedule successfully updated.")
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+
+
             AppointmentHeader.objects.filter(
                 appointment_id=appointment_id).update(appointment_status=request.data['appointment_status'])
         else:
@@ -3787,9 +3825,15 @@ def appointment_schedule_view(request):
                 
             if doc_flag == 'junior':
                 print("jr flag")
-                AppointmentReshedule.objects.create(
-                    appointment_id=appointment_id, user_id=request.data['user_id'],
-                    rescheduled_date=rescheduled_date, time_slot=time_slot, reschedule_count=count)
+                try:
+                    print(appointment_id)
+                    print(rescheduled_date)
+                    print(time_slot)
+                    AppointmentReshedule.objects.create(
+                        appointment_id=appointment_id, user_id=request.data['user_id'],
+                        rescheduled_date=rescheduled_date, time_slot=time_slot, reschedule_count=count)
+                except Exception as e:
+                    print(e)
 
         AppointmentHeader.objects.filter(
             appointment_id=appointment_id).update(appointment_status=request.data['appointment_status'])
@@ -3819,8 +3863,8 @@ def appointment_schedule_view(request):
             except Exception as e:
                 print(e)
                 print("Email Sending error")
-
-        if request.data['appointment_status'] == 7:
+        print("request.data['appointment_status'] = ",request.data['appointment_status'])
+        if request.data['appointment_status'] == 7 or request.data['appointment_status'] == 1:
             print("email-doc")
             subject=""
             try:
@@ -3867,33 +3911,11 @@ def appointment_schedule_view(request):
                 # except Exception as e:
                 #     print(e)
                 #     print("MESSAGE SENT ERROR")
-            except Exception as e:
-                print(e)
-            try:
                 cc ='nextbighealthcare@inticure.com'
                 mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
             except Exception as e:
                 print(e)
                 print("Email Sending error")
-
-        # if request.data['appointment_status'] == 5:
-        #     print("email-doc")
-        #     subject = 'Order Rescheduled'
-        #     html_message = render_to_string('order_reschedule.html', {'appointment_date': rescheduled_date,
-        #                                                              'appointment_time': time_slot, 'doctor_flag': 1,
-        #                                                              'email': get_user_mail(doctor_id)})
-        #     plain_message = strip_tags(html_message)
-        #     from_email = 'Inticure <hello@inticure.com>'
-        #     to = get_users_email(doctor_id)
-        #     mail.send_mail(subject, plain_message, from_email, [to], html_message=html_message)
-        #     try:
-        #         sms_service.send_message(
-        #             "Hi There, Your Appointment #%s has been rescheduled to:%s,%s Please refer mail for more details"
-        #             % (appointment_id, rescheduled_date, time_slot),
-        #             "+91" + str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
-        #     except Exception as e:
-        #         print(e)
-        #         print("MESSAGE SENT ERROR")
         try:
             specialization=DoctorProfiles.objects.get(user_id=doctor_id).specialization
         except:

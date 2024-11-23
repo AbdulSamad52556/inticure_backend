@@ -8,6 +8,8 @@ from datetime import date,datetime
 from django.shortcuts import render, redirect
 from inticure_backend import settings
 # Create your views here.
+from django.core.cache import cache
+import time
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -262,6 +264,20 @@ def failed_view(request,temp_id):
 def success_view2(request,temp_id):
     data = {}
     print(temp_id)
+
+    cache_key = f"temp_id_{temp_id}"
+    last_request_time = cache.get(cache_key)
+
+    if last_request_time:
+        elapsed_time = time.time() - last_request_time
+        if elapsed_time < 10:  # If the last request was within 10 seconds
+            sleep_time = 10 - elapsed_time
+            print(f"Holding the request for {sleep_time:.2f} seconds")
+            time.sleep(sleep_time)  # Hold the request for the remaining time
+
+    # Update the cache with the current time
+    cache.set(cache_key, time.time(), timeout=10)  # Cache this temp_id for 10 seconds
+
     temp_qset=TemporaryTransactionData.objects.get(temp_id=temp_id)
     if temp_qset.appointment_id is None:
       print("none")
@@ -307,6 +323,9 @@ def create_checkout_session(request):
     else:
       success_url = request.build_absolute_uri(reverse('success',kwargs={'temp_id':request_data['temp_id']}))
       cancel_url = request.build_absolute_uri(reverse('failed',kwargs={'temp_id':request_data['temp_id']}))
+    if not request.is_secure():
+      success_url = success_url.replace("http://", "https://")
+      cancel_url = cancel_url.replace("http://", "https://")
     name = "Appointment"
     shipping_info = None
     if request_data['currency'] == 'INR':
