@@ -554,47 +554,48 @@ def assign_junior_doctor(request):
     if doctor_ids:
         print('entered')
 
-        def get_random_available_doctor(appointment_date, appointment_time, docs,excluded_appointment_id):
+        # def get_random_available_doctor(appointment_date, appointment_time, docs,excluded_appointment_id):
            
-            try:
-                print('appointment_date: ',appointment_date)
-                print('appointment_time: ',appointment_time)
-                print('docs: ',docs)
-                booked_doctor_ids = list(
-                    AppointmentHeader.objects.filter(
-                        appointment_date=appointment_date,
-                        appointment_time_slot_id=appointment_time
-                    ).exclude(appointment_id__in=[excluded_appointment_id])
-                    .values_list('junior_doctor', flat=True)
-                )
-
-                print('booked doctors: ', booked_doctor_ids)
+        #     try:
+        #         print('appointment_date: ',appointment_date)
+        #         print('appointment_time: ',appointment_time)
+        #         print('docs: ',docs)
+        #         booked_doctor_ids = list(
+        #             AppointmentHeader.objects.filter(
+        #                 appointment_date=appointment_date,
+        #                 appointment_time_slot_id=appointment_time
+        #             ).exclude(appointment_id__in=[excluded_appointment_id])
+        #             .values_list('junior_doctor', flat=True)
+        #         )
+        #         "appointment_date:  2024-11-25 appointment_time:  05:45AM"
+        #         print('booked doctors: ', booked_doctor_ids)
                             
-                booked_doctor_ids2 = list(AppointmentHeader.objects.filter(
-                    appointment_date=appointment_date,
-                    appointment_time_slot_id=appointment_time
-                ))
-                print('appointments on the same date and time: ',booked_doctor_ids2)
-                # Exclude booked doctors from the list of all doctors
-                available_doctor_ids = [doc_id for doc_id in docs if doc_id not in booked_doctor_ids]
-                print(available_doctor_ids)
-                rand_id = []
-                if available_doctor_ids is not None:
-                    for i in available_doctor_ids:
-                        if i != None:
-                            rand_id.append(i)
-                    random_doctor_id = rand_id[0]
-                    return random_doctor_id
-                else:
-                    return None
-            except Exception as e:
-                print(e)
-                return None
+        #         booked_doctor_ids2 = list(AppointmentHeader.objects.filter(
+        #             appointment_date=appointment_date,
+        #             appointment_time_slot_id=appointment_time
+        #         ))
+        #         print('appointments on the same date and time: ',booked_doctor_ids2)
+        #         # Exclude booked doctors from the list of all doctors
+        #         available_doctor_ids = [doc_id for doc_id in docs if doc_id not in booked_doctor_ids]
+        #         print(available_doctor_ids)
+        #         rand_id = []
+        #         if available_doctor_ids is not None:
+        #             for i in available_doctor_ids:
+        #                 if i != None:
+        #                     rand_id.append(i)
+        #             random_doctor_id = rand_id[0]
+        #             return random_doctor_id
+        #         else:
+        #             return None
+        #     except Exception as e:
+        #         print(e)
+        #         return None
 
         try:
             appoint = AppointmentHeader.objects.get(appointment_id=request.data['appointment_id'])
             if appoint:
-                res = get_random_available_doctor(appoint.appointment_date, appoint.appointment_time_slot_id, doctor_ids,request.data['appointment_id'])
+                # res = get_random_available_doctor(appoint.appointment_date, appoint.appointment_time_slot_id, doctor_ids,request.data['appointment_id'])
+                res = doctor_ids[0]
                 print(res)
                 if res is None:
                     raise Http404("Object not found")
@@ -667,7 +668,7 @@ def create_user_view(request):
         'response_code': 200,
         'status': 'Ok',
         'message': 'user created',
-        'user_id':user_id
+        'user_id':user.id
     })
         
 """First Booking of a customer"""
@@ -722,7 +723,7 @@ def analysis_submit_view(request):
                     'response_code': 400,
                     'status': 'Failed'},
                     status=status.HTTP_400_BAD_REQUEST)
-             print(user_id)#177
+             print(user_id)
              other_gender=""
              customer_message=""
              mobile_num=0
@@ -749,7 +750,9 @@ def analysis_submit_view(request):
                     print(e)
                     location = Locations.objects.get(location = 'USA').location_id
              if mobile_num != 0:
-                CustomerProfile.objects.filter(user_id=user_id).update(mobile_number=mobile_num.split(' ')[1],
+                if len(mobile_num.split(' ')) > 1:
+                    mobile_num = mobile_num.split(' ')[1]
+                CustomerProfile.objects.filter(user_id=user_id).update(mobile_number=mobile_num,
                 date_of_birth=request.data['customer_dob'],
                 gender=request.data['customer_gender'],other_gender=other_gender,age=age,location=location,
                 residence_location = request.data['customer_location'])

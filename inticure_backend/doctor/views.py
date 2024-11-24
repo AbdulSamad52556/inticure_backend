@@ -1050,61 +1050,75 @@ def prescriptions_view(request):
 """Adding Prescriptions"""
 @api_view(['POST'])
 def prescriptions_text_view(request):
-        appointment_id=request.data['appointment_id']
-        prescriptions_text=request.data['prescriptions_text']
-        doctor_id=request.data['doctor_id']
-        tests_to_be_done=request.data['tests_to_be_done']
-        prescription_validation = request.data['prescription_validation']
-        data={
-        "appointment_id":appointment_id,
-        "prescriptions_text":prescriptions_text,
-        "doctor_id":doctor_id,
-        "tests_to_be_done":tests_to_be_done,
-        "prescription_validation":prescription_validation
-    }
-        serializer=PrescriptionTextSerializer(data=data)
-        #  print(serializer.id)
-        if serializer.is_valid():
-            instance=serializer.save()
-            print(instance.id)
-            for datas in request.data['medications']:
-                 data_medication={
-                "prescription_id":instance.id,
-                "medication":datas['medicine'],
-                "duration_number":datas['duration_number'],
-                "duration":datas['duration'],
-                "side_effects":datas['side_effects'],
-                "consumption_detail":datas['consumption_detail'],
-                "can_substitute":datas["can_substitute"]
-                }
-                 medicine_serializer=MedicationsSerializer(data=data_medication)
-                 print(medicine_serializer.is_valid(),"yo",medicine_serializer.errors)
-                 if medicine_serializer.is_valid():
-                     medicine_instance=medicine_serializer.save()
-                     print(medicine_instance.medication_id)
-                     for options in datas['consumption_time']:
-                        ConsumptionTime.objects.create(prescription_id=instance.id,
-                        medication_id=medicine_instance.medication_id,consumption_time=options)
-            try:
-                subject = 'Your Appointment Prescriptions'
-                html_message = render_to_string('prescriptions.html', {"doctor_flag":0,
-                    'email':get_user_mail(AppointmentHeader.objects.get(
-                appointment_id=appointment_id).user_id)})
-                plain_message = strip_tags(html_message)
-                from_email = 'wecare@inticure.com'
-                to =  get_user_mail(AppointmentHeader.objects.get(
-                    appointment_id=appointment_id).user_id)
-                cc = 'nextbighealthcare@inticure.com'
-                mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
-            except Exception as e:
-                print(e)
-                print("Email Sending error")
-        #AppointmentHeader.objects.filter(appointment_id=request.data['appointment_id']).update(appointment_status=request.data['appointment_status'])
-        return Response({
-        'response_code': 200,
-        'status': 'Ok',
-        'message': "Prescriptions added Booking Closed"
-        })
+        print('##########   prescriptions_text_view   ################')
+        print(request.data)
+        try:
+            appointment_id=request.data['appointment_id']
+            prescriptions_text=request.data['prescriptions_text']
+            doctor_id=request.data['doctor_id']
+            tests_to_be_done=request.data['tests_to_be_done']
+            prescription_validation = request.data['prescription_validation']
+            data={
+            "appointment_id":appointment_id,
+            "prescriptions_text":prescriptions_text,
+            "doctor_id":doctor_id,
+            "tests_to_be_done":tests_to_be_done,
+            "prescription_validation":prescription_validation
+        }
+            serializer=PrescriptionTextSerializer(data=data)
+            #  print(serializer.id)
+            if serializer.is_valid():
+                instance=serializer.save()
+                print(instance.id)
+                for datas in request.data['medications']:
+                    data_medication={
+                    "prescription_id":instance.id,
+                    "medication":datas['medicine'],
+                    "duration_number":datas['duration_number'],
+                    "duration":datas['duration'],
+                    "side_effects":datas['side_effects'],
+                    "consumption_detail":datas['consumption_detail'],
+                    "can_substitute":datas["can_substitute"]
+                    }
+                    medicine_serializer=MedicationsSerializer(data=data_medication)
+                    print(medicine_serializer.is_valid(),"yo",medicine_serializer.errors)
+                    if medicine_serializer.is_valid():
+                        print('medicine_serializer is valid')
+                        medicine_instance=medicine_serializer.save()
+                        print(medicine_instance.medication_id)
+                        for options in datas['consumption_time']:
+                            ConsumptionTime.objects.create(prescription_id=instance.id,
+                            medication_id=medicine_instance.medication_id,consumption_time=options)
+                print('prescription saved success')
+                try:
+                    print('entered into email')
+                    subject = 'Your Appointment Prescriptions'
+                    html_message = render_to_string('prescriptions.html', {"doctor_flag":0,
+                        'email':get_user_mail(AppointmentHeader.objects.get(
+                    appointment_id=appointment_id).user_id)})
+                    plain_message = strip_tags(html_message)
+                    from_email = 'wecare@inticure.com'
+                    to =  get_user_mail(AppointmentHeader.objects.get(
+                        appointment_id=appointment_id).user_id)
+                    cc = 'nextbighealthcare@inticure.com'
+                    mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+                    print('email send success')
+                except Exception as e:
+                    print(e)
+                    print("Email Sending error")
+            #AppointmentHeader.objects.filter(appointment_id=request.data['appointment_id']).update(appointment_status=request.data['appointment_status'])
+            return Response({
+            'response_code': 200,
+            'status': 'Ok',
+            'message': "Prescriptions added Booking Closed"
+            })
+        except Exception as e:
+            print(e)
+            return Response({
+            'response_code': 200,
+            'status': 'Ok',
+            'message': "Prescriptions added Booking Closed"
+            })
 """Analysis Info Text Field"""
 @api_view(['POST'])
 def analysis_info_view(request):
