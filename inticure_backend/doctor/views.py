@@ -430,7 +430,31 @@ def appointment_list_view(request):
                     consumption['consumption_time']=ConsumptionTime.objects.filter(
                         medication_id=consumption['medication_id']).values_list('consumption_time',flat=True)
             appointment['prescript_text']=prescript_text
-           
+        try:
+            app_id = AppointmentHeader.objects.get(appointment_id = appointment['appointment_id'])  
+            customer = CustomerProfile.objects.get(user_id = app_id.user_id)
+            try:
+                location = Locations.objects.get(location_id = customer.location)
+            except Exception as e:
+                print(e)
+                location = Locations.objects.get(location = 'USA')
+                
+            if app_id.senior_doctor:
+                doctor = DoctorProfiles.objects.get(user_id = app_id.senior_doctor).doctor_profile_id
+                if app_id.session_type == 'single':
+                    try:
+                        plan = Plans.objects.get(doctor_id = doctor, location_id = location.location_id).price_for_single
+                    except Exception as e:
+                        print(e)
+                else:
+                    plan = Plans.objects.get(doctor_id = doctor, location_id = location.location_id).price_for_couple
+            else:
+                plan = Plans.objects.get(doc_name = 'Junior doctor', location_id = location.location_id).price_for_single
+            appointment['plan'] = plan
+            appointment['currency'] = location.currency
+        except Exception as e:
+            print(e,'plan fetching error')
+
         for doctor in prescript_text:
             print("prescription_detail")
             try:

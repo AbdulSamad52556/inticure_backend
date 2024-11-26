@@ -648,6 +648,11 @@ def create_user_view(request):
     if request.data['email'] != "":
         try:
             user_queryset = User.objects.get(email=data['email'])
+            try:
+                CustomerProfile.objects.get(user_id = user_queryset.id, mobile_number = request.data['mobile_num'], whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Whats App',confirmation_email = request.data['email_contact'])
+            except Exception as e:
+                print(e)
+                CustomerProfile.objects.create(user_id = user_queryset.id, mobile_number = request.data['mobile_num'], whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Whats App',confirmation_email = request.data['email_contact'])
             return Response({
                 'response_code': 200,
                 'status': 'Ok',

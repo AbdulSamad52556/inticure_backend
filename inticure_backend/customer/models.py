@@ -10,11 +10,11 @@ class CustomerProfile(models.Model):
     other_gender=models.CharField(max_length=20,blank=True, null=True)
     address=models.CharField(max_length=50,blank=True, null=True)
     date_of_birth=models.DateField(blank=True, null=True,auto_now_add=False)
-    mobile_number=models.BigIntegerField(blank=True, null=True)
+    mobile_number=models.CharField(max_length=20, null=True)
     location=models.IntegerField(null=True)
     profile_pic=models.TextField(null=True)
     residence_location = models.CharField(max_length = 30, null = True)
-    whatsapp_contact = models.BigIntegerField(blank=True, null=True)
+    whatsapp_contact = models.CharField(max_length=20, null=True)
     confirmation_choice = models.CharField(max_length= 30, null=True)
     confirmation_email = models.CharField(max_length=255, default='', blank=True)
     
