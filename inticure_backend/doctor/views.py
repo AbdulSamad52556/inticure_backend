@@ -686,7 +686,288 @@ def appointment_status_update_view(request):
     
     AppointmentHeader.objects.filter(pk=appointment_id).update(
         appointment_status=appointment_status)
+    
     if appointment_status==3:
+        appointment = AppointmentHeader.objects.get(appointment_id = appointment_id)
+        customer = CustomerProfile.objects.get(user_id = appointment.user_id)
+        user = User.objects.get(id = appointment.user_id)
+        try:
+            location = Locations.objects.get(location_id = customer.location)
+        except Exception as e:
+            print(e)
+            location = Locations.objects.get(location = 'USA')
+        if appointment.senior_doctor:
+            doctor = DoctorProfiles.objects.get(user_id = appointment.senior_doctor).doctor_profile_id
+            if appointment.session_type == 'single':
+                try:
+                    plan = Plans.objects.get(doctor_id = doctor, location_id = location.location_id).price_for_single
+                except Exception as e:
+                    print(e)
+            else:
+                plan = Plans.objects.get(doctor_id = doctor, location_id = location.location_id).price_for_couple
+        else:
+            plan = Plans.objects.get(doc_name = 'Junior doctor', location_id = location.location_id).price_for_single
+
+        if appointment.escalated_date:
+            today = datetime.datetime.now().date()
+            escalated_datetime = datetime.combine(today, appointment.escalated_time)
+            
+            now = datetime.now()
+            time_72_hours = now + timedelta(hours=72)
+            time_7_days = now + timedelta(days=7)
+            
+            if escalated_datetime > time_72_hours and escalated_datetime <= time_7_days:
+                refund_amt = plan * 0.5
+                appointment.refund = f"{refund_amt} {location.currency}"
+                appointment.save()
+
+                try:
+                    refund_message = f"""
+                        <html>
+                            <body>
+                                <p>Dear Team,</p>
+
+                                <p>We would like to inform you that the following appointment has been processed for a refund:</p>
+                                
+                                <table>
+                                    <tr>
+                                        <th>Appointment ID</th>
+                                        <td>{appointment.appointment_id}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Patient Name</th>
+                                        <td>{user.first_name} {user.last_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Email</th>
+                                        <td>{user.email}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Original Appointment Date</th>
+                                        <td>{appointment.appointment_date}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Escalated Date</th>
+                                        <td>{appointment.escalated_date if appointment.escalated_date else 'Not Escalated'}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Refund Amount</th>
+                                        <td><strong>{refund_amt} {location.currency}</strong></td>
+                                    </tr>
+                                </table>
+
+                                <p>Reason for Refund: Appointment is Cancelled before 72 hours from appointment time and within 7 days</p>
+                                
+                                <p>kindly requesting you to review and process the refund as per company policy.</p>
+            
+                                <p>Best regards,<br/>Your Company Team</p>
+                            </body>
+                        </html>
+                        """
+                    to = 'wecare@inticure.com'
+                    from_email = "nextbighealthcare@inticure.com"
+                    subject = 'Refund Details'
+                    mail.send_mail(subject, 'This is a plain text version of the message.', from_email, [to], html_message=refund_message)
+                except Exception as e:
+                    print(e)
+                    print('Email send error to wecare@inticure.com')
+
+            elif escalated_datetime > time_7_days:
+                refund = f"{plan} {location.currency}"
+                appointment.refund = refund
+                appointment.save()
+
+                try:
+                    refund_message = f"""
+                        <html>
+                            <body>
+                                <p>Dear Team,</p>
+
+                                <p>We would like to inform you that the following appointment has been processed for a refund:</p>
+                                
+                                <table>
+                                    <tr>
+                                        <th>Appointment ID</th>
+                                        <td>{appointment.appointment_id}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Patient Name</th>
+                                        <td>{user.first_name} {user.last_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Email</th>
+                                        <td>{user.email}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Original Appointment Date</th>
+                                        <td>{appointment.appointment_date}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Escalated Date</th>
+                                        <td>{appointment.escalated_date if appointment.escalated_date else 'Not Escalated'}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Refund Amount</th>
+                                        <td><strong>{refund_amt} {location.currency}</strong></td>
+                                    </tr>
+                                </table>
+
+                                <p>Reason for Refund: Appointment is Cancelled before 7 days</p>
+                                
+                                <p>kindly requesting you to review and process the refund as per company policy.</p>
+            
+                                <p>Best regards,<br/>Your Company Team</p>
+                            </body>
+                        </html>
+                        """
+                    to = 'wecare@inticure.com'
+                    from_email = "nextbighealthcare@inticure.com"
+                    subject = 'Refund Details'
+                    mail.send_mail(subject, 'This is a plain text version of the message.', from_email, [to], html_message=refund_message)
+                except Exception as e:
+                    print(e)
+                    print('Email send error to wecare@inticure.com')
+            else:
+                try:
+                    subject = 'order cancelled'
+                    from_email = "nextbighealthcare@inticure.com"
+                    to = 'abdulsamad52556@gmail.com'
+                    refund_message = "Escalated time is less than or equal to 72 hours from now."
+                    mail.send_mail(subject, refund_message, from_email, [to])
+                except Exception as e:
+                    print(e)
+                    print("Email Sending error")
+                print("Escalated time is less than or equal to 72 hours from now.")
+        else:
+            today = datetime.datetime.now().date()
+            escalated_datetime = datetime.combine(today, appointment.appointment_time_slot_id)
+            
+            now = datetime.now()
+            time_72_hours = now + timedelta(hours=72)
+            time_7_days = now + timedelta(days=7)
+            
+            if escalated_datetime > time_72_hours and escalated_datetime <= time_7_days:
+                refund_amt = plan * 0.5
+                appointment.refund = f"{refund_amt} {location.currency}"
+                appointment.save()
+                try:
+                    refund_message = f"""
+                        <html>
+                            <body>
+                                <p>Dear Team,</p>
+
+                                <p>We would like to inform you that the following appointment has been processed for a refund:</p>
+                                
+                                <table>
+                                    <tr>
+                                        <th>Appointment ID</th>
+                                        <td>{appointment.appointment_id}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Patient Name</th>
+                                        <td>{user.first_name} {user.last_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Email</th>
+                                        <td>{user.email}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Original Appointment Date</th>
+                                        <td>{appointment.appointment_date}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Escalated Date</th>
+                                        <td>{appointment.escalated_date if appointment.escalated_date else 'Not Escalated'}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Refund Amount</th>
+                                        <td><strong>{refund_amt} {location.currency}</strong></td>
+                                    </tr>
+                                </table>
+
+                                <p>Reason for Refund: Appointment is Cancelled before 72 hours from appointment time and within 7 days</p>
+                                
+                                <p>kindly requesting you to review and process the refund as per company policy.</p>
+            
+                                <p>Best regards,<br/>Your Company Team</p>
+                            </body>
+                        </html>
+                        """
+                    to = 'wecare@inticure.com'
+                    from_email = "nextbighealthcare@inticure.com"
+                    subject = 'Refund Details'
+                    mail.send_mail(subject, 'This is a plain text version of the message.', from_email, [to], html_message=refund_message)
+                except Exception as e:
+                    print(e)
+                    print('Email send error to wecare@inticure.com')
+
+            elif escalated_datetime > time_7_days:
+                refund = f"{plan} {location.currency}"
+                appointment.refund = refund
+                appointment.save()
+
+                try:
+                    refund_message = f"""
+                        <html>
+                            <body>
+                                <p>Dear Team,</p>
+
+                                <p>We would like to inform you that the following appointment has been processed for a refund:</p>
+                                
+                                <table>
+                                    <tr>
+                                        <th>Appointment ID</th>
+                                        <td>{appointment.appointment_id}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Patient Name</th>
+                                        <td>{user.first_name} {user.last_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Email</th>
+                                        <td>{user.email}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Original Appointment Date</th>
+                                        <td>{appointment.appointment_date}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Escalated Date</th>
+                                        <td>{appointment.escalated_date if appointment.escalated_date else 'Not Escalated'}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Refund Amount</th>
+                                        <td><strong>{refund_amt} {location.currency}</strong></td>
+                                    </tr>
+                                </table>
+
+                                <p>Reason for Refund: Appointment is Cancelled before 7 days</p>
+                                
+                                <p>kindly requesting you to review and process the refund as per company policy.</p>
+            
+                                <p>Best regards,<br/>Your Company Team</p>
+                            </body>
+                        </html>
+                        """
+                    to = 'wecare@inticure.com'
+                    from_email = "nextbighealthcare@inticure.com"
+                    subject = 'Refund Details'
+                    mail.send_mail(subject, 'This is a plain text version of the message.', from_email, [to], html_message=refund_message)
+                except Exception as e:
+                    print(e)
+                    print('Email send error to wecare@inticure.com')
+
+            else:
+                try:
+                    subject = 'order cancelled'
+                    from_email = "nextbighealthcare@inticure.com"
+                    to = 'abdulsamad52556@gmail.com'
+                    refund_message = "Escalated time is less than or equal to 72 hours from now."
+                    mail.send_mail(subject, refund_message, from_email, [to])
+                except Exception as e:
+                    print(e)
+                    print("Email Sending error")
+                print("Escalated time is less than or equal to 72 hours from now.")
         try:
             create_refund(appointment_id)
             subject = 'Order Cancelled'
