@@ -6,7 +6,7 @@ from .views import remove_option_view, sign_in_view, logout_view, create_questio
     report_customer_view,forgot_password_view,password_change_view,application_action_view,sign_in_otp_view,\
     earnings_view,admin_dashboard_view,settings_view,inticure_earnings_view,invoice_status_update_view,\
     dashboard_view,create_user, get_price, get_plan, edit_plan, remove_plan, get_location, duration, add_duration,\
-    contact_form_submission
+    contact_form_submission, block_reschedule, can_reschedule
 
 from .routers import router
 
@@ -47,5 +47,7 @@ urlpatterns = [
     path('api/doctor-duration/', duration, name='doctor_duration'),
     path('api/add-duration/', add_duration, name='add_duration'),
     path('api/contact/', contact_form_submission, name='contact_form_submission'),
+    path('can_reschedule',can_reschedule,name='can_reschedule'),
+    path('block_reschedule',block_reschedule,name='block_reschedule'),
     path('', include(router.urls)),
 ]

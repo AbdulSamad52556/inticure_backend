@@ -60,7 +60,9 @@ class AppointmentHeader(models.Model):
     customer_message=models.TextField(null=True)
     loc_id = models.IntegerField(default=0)
     payment_status = models.BooleanField(default=False)
+    payment_gateway = models.CharField(max_length=20, null=True)
     session_type = models.CharField(default = 'single', max_length = 20)
+    can_reschedule = models.BooleanField(default=False)
 """Holds the details  of analysis questions user submitted before taking appointment"""
 
 

@@ -3,7 +3,8 @@ from django.urls import path, include
 from .routers import router
 
 from analysis.views import category_view, create_category_view, questionnaire_view, analysis_submit_view,\
-followup_booking_view,payments_view,invoice_list_view,invoice_detail_view,answer_type_view,otp_verify_view,create_user_view
+followup_booking_view,payments_view,invoice_list_view,invoice_detail_view,answer_type_view,otp_verify_view,create_user_view, \
+reschedule_check
 
 urlpatterns = [
     
@@ -18,5 +19,6 @@ urlpatterns = [
     path('payments',payments_view,name='payments'),
     path('answer_type',answer_type_view,name='answer_type'),
     path('otp_verify',otp_verify_view,name='otp_verify'),
+    path('reschedule_check',reschedule_check,name='reschedule_check'),
     path('', include(router.urls)),
 ]

@@ -2656,14 +2656,17 @@ def specialization_timeslot_view_reschedule(request):
     print(request.data)
     timeslot=list()
     try:
-        appointment = AppointmentHeader.objects.get(appointment_id = request.data['appointment_id']).senior_doctor
-        objects_filter=DoctorAvailableDates.objects.filter(doctor_id=appointment,
-                        date__gte=datetime.datetime.now().date() + timedelta(days=1))
+        appointment = AppointmentHeader.objects.get(appointment_id = request.data['appointment_id'])
+        senior_doctor = appointment.senior_doctor
+        base_date = appointment.escalated_date if appointment.escalated_date else appointment.appointment_date
+        end_date = base_date + timedelta(days=3)
+        objects_filter=DoctorAvailableDates.objects.filter(doctor_id=senior_doctor,
+                        date__gte=datetime.datetime.now().date() + timedelta(days=1),date__lte=end_date)
         working_dates_serializer=WorkingDateSerializer(objects_filter,many=True).data
         for slot in working_dates_serializer:
             appointment_date_=datetime.datetime.strptime(slot['date'],"%Y-%m-%d")
             slots_available=SeniorDoctorAvailableTimeSLotsSerializer(SeniorDoctorAvailableTimeSLots.objects.filter(
-                    date= appointment_date_, doctor_id=appointment, is_active=0),many=True).data
+                    date= appointment_date_, doctor_id=senior_doctor, is_active=0),many=True).data
             time_solt_data = {'date':slot['date'], 'timeslot': slots_available}
             if time_solt_data:
                 if len(timeslot) > 0:

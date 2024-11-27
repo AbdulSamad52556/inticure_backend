@@ -611,6 +611,42 @@ def get_location(request):
         })
 
 @api_view(['POST'])
+def block_reschedule(request):
+    try:
+        appointment_id = request.data['appointment_id']
+        appointment = AppointmentHeader.objects.get(appointment_id = appointment_id)
+        appointment.can_reschedule = False
+        appointment.save()
+        return Response({
+            'response_code':200,
+            'status': 'ok'
+        })
+    
+    except Exception as e:
+        print(e)
+        return Response({
+                'response_code':400,
+                'status': 'Failed'
+            })
+@api_view(['POST'])
+def can_reschedule(request):
+    try:
+        appointment_id = request.data['appointment_id']
+        appointment = AppointmentHeader.objects.get(appointment_id = appointment_id)
+        appointment.can_reschedule = True
+        appointment.save()
+        return Response({
+            'response_code':200,
+            'status': 'ok'
+        })
+    except Exception as e:
+        print(e)
+        return Response({
+                'response_code':400,
+                'status': 'Failed'
+            })
+
+@api_view(['POST'])
 def update_option_view(request):
     try:
         option_serializer = OptionsSerializer(data=request.data)

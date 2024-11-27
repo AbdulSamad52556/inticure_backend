@@ -137,7 +137,7 @@ def assign_senior_doctor(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-   
+
 
 @api_view(['POST'])
 def category_view(request):
@@ -157,6 +157,26 @@ def category_view(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+@api_view(['POST'])
+def reschedule_check(request):
+    try:
+        appointment_id = request.data['appointment_id']
+        appointment = AppointmentHeader.objects.get(appointment_id = appointment_id)
+        if appointment.can_reschedule == True:
+            return Response({
+                'response_code':200,
+                'status': 'ok'
+            })
+        return Response({
+            'response_code':400,
+            'status': 'Failed'
+        })
+    except Exception as e:
+        print(e)
+        return Response({
+                'response_code':400,
+                'status': 'Failed'
+            })
 
 @api_view(['POST'])
 def create_category_view(request):
@@ -689,7 +709,9 @@ def analysis_submit_view(request):
     appointment_datetime_str = f"{appointment_date_str} {appointment_time_str}"
     appointment_datetime = datetime.strptime(appointment_datetime_str, '%Y-%m-%d %I:%M%p')
     current_datetime = datetime.now()
-
+    payment_gateway = 'None'
+    if 'payment_gateway' in request.data and request.data['payment_gateway'] != "":
+        payment_gateway = request.data['payment_gateway']
     if appointment_datetime < current_datetime:
         return Response({'error': 'Appointment date and time must be in the future.'}, status=400)
     try:
@@ -776,7 +798,7 @@ def analysis_submit_view(request):
         appointment_date=request.data['appointment_date'],
         appointment_time_slot_id=appointment_time,type_booking='new',
         language_pref=request.data['language_pref'],gender_pref=request.data['gender_pref'],
-        customer_message=customer_message,payment_status=True)
+        customer_message=customer_message,payment_status=True, payment_gateway = payment_gateway)
         print("appointment created")
         for question in request.data['questions']:
             appointment_questions = AppointmentQuestions.objects.create(question_id=question['question_id'],

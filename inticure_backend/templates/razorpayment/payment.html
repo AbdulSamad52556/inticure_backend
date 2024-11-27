@@ -96,15 +96,17 @@
                     .then(result => {
                         console.log("Verification result:", result);
                         if (result.status === "success") {
+                            let data = "razorpay";
+
                             if ("{{appointment_flag}}" === "first_appointment") {
-                                window.location.href = "https://analysis.inticure.online/thank_you_page";
+                                window.location.href = `https://analysis.inticure.online/thank_you_page?payment_gateway=${encodeURIComponent(data)}`;
                             }
                             else{
-                                window.location.href = "https://customers.inticure.online/payment_success";
+                                window.location.href = `https://customers.inticure.online/payment_success?payment_gateway=${encodeURIComponent(data)}`;
                             }
                         } else {
                             if ("{{appointment_flag}}" === "first_appointment") {
-                                window.location.href = "https://customers.inticure.online/payment_failure";
+                                window.location.href = "https://analysis.inticure.online/payment_failure";
                             }
                             else{
                                 window.location.href = "https://customers.inticure.online/payment_failure";
