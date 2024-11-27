@@ -687,6 +687,18 @@ def create_user_view(request):
             else:
                 user_id = create_user(data['email'], data['first_name'],data['last_name'])
                 CustomerProfile.objects.filter(user_id = user_id).update(confirmation_email = request.data['email_contact'], confirmation_choice = 'Email')
+            try:
+                subject = 'inticure account creation'
+                html_message = render_to_string('user_confirmation.html', {'email': user.email,
+                'user_id':user_id.decode()})
+                plain_message = strip_tags(html_message)
+                # plain_message="account-created"
+                from_email = 'wecare@inticure.com'
+                to = user.email
+                mail.send_mail(subject, plain_message, from_email, [to], html_message=html_message)
+            except Exception as e:
+                print(e)
+                print("Email Sending error")
     else:
         user_id = create_user_mobile_num(request.data[''])
     return Response({
