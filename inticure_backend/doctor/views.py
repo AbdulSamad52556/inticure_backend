@@ -2193,9 +2193,9 @@ def dashboard_view(request):
     escalated_count=0
     dash_data={}
     if doctor_flag==2:
-        appointment_count=AppointmentHeader.objects.filter(appointment_status__in=[0,10],user_id = request.data['doctor_id'], payment_status=1).count()
+        appointment_count=AppointmentHeader.objects.filter(appointment_status__in=[0,10,1],user_id = request.data['doctor_id'], payment_status=1).count()
         followup_count=AppointmentHeader.objects.filter(appointment_status=8,junior_doctor=doctor_id).count()
-        completed_count=AppointmentHeader.objects.filter(appointment_status=6,junior_doctor=doctor_id).count()
+        completed_count=AppointmentHeader.objects.filter(appointment_status__in=[6,9],junior_doctor=doctor_id).count()
         dash_data={
         "appointment_count":appointment_count,
         "followup_count":followup_count,
@@ -2203,8 +2203,8 @@ def dashboard_view(request):
 
     if doctor_flag==1:
         followup_count=AppointmentHeader.objects.filter(appointment_status=8,senior_doctor=doctor_id).count()
-        completed_count=AppointmentHeader.objects.filter(appointment_status=6,senior_doctor=doctor_id).count()
-        escalated_count=AppointmentHeader.objects.filter(appointment_status__in=[2,11,12] ,senior_doctor=doctor_id,payment_status=True).count()
+        completed_count=AppointmentHeader.objects.filter(appointment_status__in=[6,9],senior_doctor=doctor_id).count()
+        escalated_count=AppointmentHeader.objects.filter(appointment_status__in=[1,2,11,12] ,senior_doctor=doctor_id,payment_status=True).count()
         dash_data={
         "appointment_count":escalated_count,
         "followup_count":followup_count,

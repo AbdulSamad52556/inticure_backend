@@ -1479,19 +1479,19 @@ def followup_booking_view(request):
             print(e)
             print("Email Sending error")
         
-        try:
-            subject = 'Appointment Confirmation'
-            html_message = render_to_string('order_confirmation_doctor.html', {'appointment_id': appointment.appointment_id,
-            "name":get_users_name(request.data['user_id']),"doctor_name":get_users_name(doctor_id),'date':appointment_date,
-            "time":time_slot_id,"doctor_flag":2,"meet_link":meet_link})
-            plain_message = strip_tags(html_message)
-            from_email = 'wecare@inticure.com'
-            to = doctor_email
-            cc = "nextbighealthcare@inticure.com"
-            mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
-        except Exception as e:
-            print(e)
-            print("Email Sending error")
+        # try:
+        #     subject = 'Appointment Confirmation'
+        #     html_message = render_to_string('order_confirmation_doctor.html', {'appointment_id': appointment.appointment_id,
+        #     "name":get_users_name(request.data['user_id']),"doctor_name":get_users_name(doctor_id),'date':appointment_date,
+        #     "time":time_slot_id,"doctor_flag":2,"meet_link":meet_link})
+        #     plain_message = strip_tags(html_message)
+        #     from_email = 'wecare@inticure.com'
+        #     to = doctor_email
+        #     cc = "nextbighealthcare@inticure.com"
+        #     mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
+        # except Exception as e:
+        #     print(e)
+        #     print("Email Sending error")
 
         return Response({
             'response_code': 200,
