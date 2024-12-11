@@ -164,7 +164,7 @@
 		<!-- Email Body -->
 		<div class="email-body">
 			{%if doctor_flag == 0%}
-			<p><strong>Hello {{name}}</strong>,</p>
+			<p><strong>Hi {{name}}</strong>,</p>
 			<p>Your appointment has been successfully rescheduled! </p>
 			<p>Your consultation has now been confirmed for </p>
 			<p>Your rescheduled appointment date: {{appointment_date}} and appointment time: {{appointment_time}}  With DR. {{doctor_name}} {{specialization}}</p>
@@ -176,7 +176,7 @@
 			<p class="mt-4">---- <br>Regards<br>Inticure Care</p>
       		{% endif %}
       		{%if doctor_flag == 1%}
-			  <p><strong>Hello {{name}}</strong>,</p>
+			  <p><strong>Hi {{name}}</strong>,</p>
 			  <p>This mail is regarding of an order reschedule update</p>
 			  <p>Appointment {{appointment_id}} has been rescheduled to another available date</p>
 			  <p>rescheduled appointment date: {{appointment_date}} and appointment time: {{appointment_time}}  Please confirm your availabliity by logging in to your account</p>

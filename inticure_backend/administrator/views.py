@@ -230,7 +230,8 @@ def sign_in_otp_view(request):
                 try:    
                     sms_service.send_message("Hi There, Your OTP for LogIn is:%s"%OTP,
                     "+91" + str(request.data['mobile_num']))
-                except:
+                except Exception as e:
+                    print(e)
                     print("MESSAGE SENT ERROR")
                 if is_dr:
                     return Response({
@@ -304,24 +305,25 @@ def sign_in_otp_view(request):
                     'message': 'User Banned'},
                     status=status.HTTP_400_BAD_REQUEST)
             else:
-                try:
-                    print('invalid otp verification')
-                    subject = 'Inticure OTP Verification'
-                    html_message = render_to_string('email_otp.html', {'email':request.data['email'],
-                    "confirm":0,"OTP":OTP })
-                    plain_message = strip_tags(html_message)
-                    # plain_message="account-created"
-                    from_email = 'wecare@inticure.com'
-                    to = request.data['email']
-                    cc = 'nextbighealthcare@inticure.com'
-                    mail.send_mail(subject, plain_message, from_email, [to], [cc],html_message=html_message)
-                except Exception as e:
-                    print(e)
-                    print("Email Sending error")
+                # try:
+                #     print('invalid otp verification')
+                #     subject = 'Inticure OTP Verification'
+                #     html_message = render_to_string('email_otp.html', {'email':request.data['email'],
+                #     "confirm":0,"OTP":OTP })
+                #     plain_message = strip_tags(html_message)
+                #     # plain_message="account-created"
+                #     from_email = 'wecare@inticure.com'
+                #     to = request.data['email']
+                #     cc = 'nextbighealthcare@inticure.com'
+                #     mail.send_mail(subject, plain_message, from_email, [to], [cc],html_message=html_message)
+                # except Exception as e:
+                #     print(e)
+                #     print("Email Sending error")
                 return Response({
                  'response_code': 200,
                     'status': 'Success',
                     'message': 'OTP Generated',
+                    'user_id': user_id,
                     'otp':OTP})
             # sms_service.send_message("Hello Your OTP for LogIn is:%s"%OTP,
             #      "+91" + str(request.data['mobile_num']))
@@ -744,11 +746,11 @@ def doctor_create_view(request):
         print(user)
         if user == 1:
             user_id = create_user(request.data['email'],request.data['doc_fname'],
-                                   request.data['doc_lname'],
-                                   request.data['location'],request.data['specialization'],
-                                   request.data['mobile_num'],request.data['gender'],
-                                   request.data['qualification'],request.data['address'],
-                                   request.data['certificate_no'],request.data['doctor_bio'])
+                request.data['doc_lname'],
+                request.data['location'],request.data['specialization'],
+                request.data['mobile_num'],request.data['gender'],
+                request.data['qualification'],request.data['address'],
+                request.data['certificate_no'],request.data['doctor_bio'])
             if not user_id:
                 return Response({
                     'response_code': 400,
@@ -1186,10 +1188,11 @@ def report_customer_view(request):
         if report_count==2:
             try:
                 subject = 'User Banned'
+                user_mail=User.objects.get(id=request.data['customer_id'])
                 html_message = render_to_string('user_banned.html', {
-                'email':user_mail})
+                'email':user_mail.first_name+' '+user_mail.last_name})
                 plain_message = strip_tags(html_message)
-                to =  user_mail
+                to =  user_mail.email
                 cc = 'nextbighealthcare@inticure.com'
                 from_email = 'wecare@inticure.com'
                 try:

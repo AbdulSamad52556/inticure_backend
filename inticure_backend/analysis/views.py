@@ -315,7 +315,7 @@ def create_user(email,first_name,last_name):
 
             try:
                 subject = 'inticure account creation'
-                html_message = render_to_string('user_confirmation.html', {'email': user.email,
+                html_message = render_to_string('user_confirmation.html', {'email': user.first_name+' '+user.last_name,
                 'user_id':user_id.decode()})
                 plain_message = strip_tags(html_message)
                 # plain_message="account-created"
@@ -661,52 +661,142 @@ def assign_junior_doctor(request):
         'message': 'Doctor not Available'
     })
 
+# @api_view(['POST'])
+# def create_user_view(request):
+#     data = request.data
+#     print('612', request.data)
+#     if request.data['email'] != "":
+#         try:
+#             user_queryset = User.objects.get(email=data['email'])
+#             try:
+#                 CustomerProfile.objects.get(user_id = user_queryset.id)
+#             except Exception as e:
+#                 print(e)
+#                 if request.data['confirmation_method'] == 'email':
+#                     CustomerProfile.objects.create(user_id = user_queryset.id, mobile_number = request.data['mobile_num'], whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Email',confirmation_email = request.data['email_contact'])
+#                 else:
+#                     CustomerProfile.objects.create(user_id = user_queryset.id, mobile_number = request.data['mobile_num'], whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Whats App',confirmation_email = request.data['email_contact'])
+#             return Response({
+#                 'response_code': 200,
+#                 'status': 'Ok',
+#                 'message': 'user exists',
+#                 'user_id':user_queryset.id
+#             })
+#         except:
+#             if 'whatsapp_contact' in request.data and request.data['whatsapp_contact'] != "":
+#                 user_id = User.objects.create_user(first_name = data['first_name'], last_name = request.data['last_name'], username = request.data['email'], email = request.data['email'], password=request.data['email'])
+#                 user = User.objects.get(email = request.data['email'])
+#                 if request.data['confirmation_method'] == 'email':
+#                     CustomerProfile.objects.create(user_id = user.id, mobile_number = request.data['mobile_num'], whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Email',confirmation_email = request.data['email_contact'])
+#                 else:
+#                     CustomerProfile.objects.create(user_id = user.id, mobile_number = request.data['mobile_num'], whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Whats App',confirmation_email = request.data['email_contact'])
+
+#             else:
+#                 user_id = create_user(data['email'], data['first_name'],data['last_name'])
+#                 CustomerProfile.objects.filter(user_id = user_id).update(confirmation_email = request.data['email_contact'], confirmation_choice = 'Email')
+#             try:
+#                 subject = 'inticure account creation'
+#                 html_message = render_to_string('user_confirmation.html', {'email': user.email,
+#                 'user_id':user.id})
+#                 plain_message = strip_tags(html_message)
+#                 from_email = 'wecare@inticure.com'
+#                 to = user.email
+#                 mail.send_mail(subject, plain_message, from_email, [to], html_message=html_message)
+#             except Exception as e:
+#                 print(e)
+#                 print("Email Sending error")
+#     else:
+#         user_id = create_user_mobile_num(request.data[''])
+#     return Response({
+#         'response_code': 200,
+#         'status': 'Ok',
+#         'message': 'user created',
+#         'user_id':user.id
+#     })
+
+
 @api_view(['POST'])
 def create_user_view(request):
     data = request.data
-    print('612', request.data)
-    if request.data['email'] != "":
+    print('Request Data:', data)
+
+    if not data.get('email'):
+        return Response({
+            'response_code': 400,
+            'status': 'Error',
+            'message': 'Email is required.'
+        })
+
+    try:
+        user_queryset = User.objects.get(email=data['email'])
+
+        customer_profile = CustomerProfile.objects.filter(user_id=user_queryset.id).first()
+
+        if not customer_profile:
+            confirmation_method = data.get('confirmation_method', 'email').lower()
+            confirmation_choice = 'Email' if confirmation_method == 'email' else 'Whats App'
+
+            CustomerProfile.objects.create(
+                user_id=user_queryset.id,
+                mobile_number=data.get('mobile_num'),
+                whatsapp_contact=data.get('whatsapp_contact'),
+                confirmation_choice=confirmation_choice,
+                confirmation_email=data.get('email_contact'),
+                residence_location=data.get('country')
+            )
+
+        return Response({
+            'response_code': 200,
+            'status': 'Ok',
+            'message': 'User already exists.',
+            'user_id': user_queryset.id
+        })
+
+    except Exception as e:
+        print(e)
         try:
-            user_queryset = User.objects.get(email=data['email'])
-            try:
-                CustomerProfile.objects.get(user_id = user_queryset.id, mobile_number = request.data['mobile_num'], whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Whats App',confirmation_email = request.data['email_contact'])
-            except Exception as e:
-                print(e)
-                CustomerProfile.objects.create(user_id = user_queryset.id, mobile_number = request.data['mobile_num'], whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Whats App',confirmation_email = request.data['email_contact'])
+            user = User.objects.create_user(
+                first_name=data.get('first_name', ''),
+                last_name=data.get('last_name', ''),
+                username=data['email'],
+                email=data['email'],
+                password=data['email'] 
+            )
+
+            confirmation_method = data.get('confirmation_method', 'email').lower()
+            confirmation_choice = 'Email' if confirmation_method == 'email' else 'Whats App'
+
+            CustomerProfile.objects.create(
+                user_id=user.id,
+                mobile_number=data.get('mobile_num'),
+                whatsapp_contact=data.get('whatsapp_contact'),
+                confirmation_choice=confirmation_choice,
+                confirmation_email=data.get('email_contact'),
+                residence_location=data.get('country')
+            )
+
+            subject = 'Inticure Account Creation'
+            html_message = render_to_string('user_confirmation.html', {'email': user.first_name+' '+user.last_name, 'user_id': user.id})
+            plain_message = strip_tags(html_message)
+            from_email = 'wecare@inticure.com'
+            to_email = user.email
+
+            mail.send_mail(subject, plain_message, from_email, [to_email], html_message=html_message)
+
             return Response({
                 'response_code': 200,
                 'status': 'Ok',
-                'message': 'user exists',
-                'user_id':user_queryset.id
+                'message': 'User created successfully.',
+                'user_id': user.id
             })
-        except:
-            if 'whatsapp_contact' in request.data and request.data['whatsapp_contact'] != "":
-                user_id = User.objects.create_user(first_name = data['first_name'], last_name = request.data['last_name'], username = request.data['email'], email = request.data['email'], password=request.data['email'])
-                user = User.objects.get(email = request.data['email'])
-                CustomerProfile.objects.create(user_id = user.id, mobile_number = request.data['mobile_num'], whatsapp_contact = request.data['whatsapp_contact'], confirmation_choice = 'Whats App',confirmation_email = request.data['email_contact'])
-            else:
-                user_id = create_user(data['email'], data['first_name'],data['last_name'])
-                CustomerProfile.objects.filter(user_id = user_id).update(confirmation_email = request.data['email_contact'], confirmation_choice = 'Email')
-            try:
-                subject = 'inticure account creation'
-                html_message = render_to_string('user_confirmation.html', {'email': user.email,
-                'user_id':user_id.decode()})
-                plain_message = strip_tags(html_message)
-                # plain_message="account-created"
-                from_email = 'wecare@inticure.com'
-                to = user.email
-                mail.send_mail(subject, plain_message, from_email, [to], html_message=html_message)
-            except Exception as e:
-                print(e)
-                print("Email Sending error")
-    else:
-        user_id = create_user_mobile_num(request.data[''])
-    return Response({
-        'response_code': 200,
-        'status': 'Ok',
-        'message': 'user created',
-        'user_id':user.id
-    })
+
+        except Exception as e:
+            print(f"Error creating user: {e}")
+            return Response({
+                'response_code': 500,
+                'status': 'Error',
+                'message': 'An error occurred while creating the user.'
+            })
         
 """First Booking of a customer"""
 @api_view(['POST'])
@@ -789,8 +879,8 @@ def analysis_submit_view(request):
                     print(e)
                     location = Locations.objects.get(location = 'USA').location_id
              if mobile_num != 0:
-                if len(mobile_num.split(' ')) > 1:
-                    mobile_num = mobile_num.split(' ')[1]
+                # if len(mobile_num.split(' ')) > 1:
+                #     mobile_num = mobile_num.split(' ')[1]
                 CustomerProfile.objects.filter(user_id=user_id).update(mobile_number=mobile_num,
                 date_of_birth=request.data['customer_dob'],
                 gender=request.data['customer_gender'],other_gender=other_gender,age=age,location=location,
@@ -810,7 +900,7 @@ def analysis_submit_view(request):
         appointment_date=request.data['appointment_date'],
         appointment_time_slot_id=appointment_time,type_booking='new',
         language_pref=request.data['language_pref'],gender_pref=request.data['gender_pref'],
-        customer_message=customer_message,payment_status=True, payment_gateway = payment_gateway)
+        customer_message=customer_message,payment_status=True, payment_gateway = payment_gateway, total=request.data['payment'])
         print("appointment created")
         for question in request.data['questions']:
             appointment_questions = AppointmentQuestions.objects.create(question_id=question['question_id'],
@@ -1161,14 +1251,37 @@ def followup_booking_view(request):
             appointment_qset=AppointmentHeader.objects.get(appointment_id=appointment_id)
             language_pref=appointment_qset.language_pref
             gender_pref=appointment_qset.gender_pref
+            session_type = appointment_qset.session_type
+            user_id = appointment_qset.user_id
         except Exception as e:
             print(e)
             language_pref=""
             gender_pref=""
+            session_type = ""
         if doctor_flag==1:
             print("doctor")
             doctor_id=request.data['doctor_id']
             doctor_flg="senior"
+
+            user_location = CustomerProfile.objects.get(user_id = user_id).residence_location
+            try:
+                if session_type == 'couple':
+                    plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_couple
+                else:
+                    plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_single
+            except Exception as e:
+                print(e)
+                if session_type == 'couple':
+                    plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_couple
+                else:
+                    plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_single
+                
+            try:
+                currency = Locations.objects.get(location = user_location).currency
+            except Exception as e:
+                currency = Locations.objects.get(location = 'USA').currency
+            total = str(plan) + ' ' + currency 
+
             appointment=AppointmentHeader.objects.create(
                 user_id=user_id, category_id=request.data['category_id'],
                 is_free=request.data['new_user'],
@@ -1180,7 +1293,7 @@ def followup_booking_view(request):
                 followup_created_doctor_id=request.data['followup_created_doctor_id'],
                 appointment_status=appointment_status,
                 language_pref=language_pref,gender_pref=gender_pref,
-                senior_doctor=doctor_id,followup_remark=request.data['remarks'])
+                senior_doctor=doctor_id,followup_remark=request.data['remarks'], total = total)
             time_slot_querysets=SrDoctorEngagement.objects.create(user_id=doctor_id,
                 appointment_id=appointment.appointment_id,date=appointment_date,time_slot=time_slot_id)
             DoctorMapping.objects.create(appointment_id=appointment.appointment_id,
@@ -1258,8 +1371,29 @@ def followup_booking_view(request):
                 print("Email Sending error")
 
         if doctor_flag==0:
+
             doctor_qset=AppointmentHeader.objects.get(appointment_id=request.data['followup_id'])
             doctor_id=doctor_qset.senior_doctor
+            session_type = doctor_qset.session_type
+            user_location = CustomerProfile.objects.get(user_id = doctor_qset.user_id).residence_location
+            try:
+                if session_type == 'couple':
+                    plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_couple
+                else:
+                    plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_single
+            except Exception as e:
+                print(e)
+                if session_type == 'couple':
+                    plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_couple
+                else:
+                    plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_single
+                
+            try:
+                currency = Locations.objects.get(location = user_location).currency
+            except Exception as e:
+                currency = Locations.objects.get(location = 'USA').currency
+            total = str(plan) + ' ' + currency 
+
             appointment=AppointmentHeader.objects.create(user_id=user_id, 
                 category_id=request.data['category_id'],
                 is_free=request.data['new_user'],
@@ -1271,7 +1405,7 @@ def followup_booking_view(request):
                 followup_created_by=request.data['followup_created_by'],
                 followup_created_doctor_id=doctor_id,
                 appointment_status=appointment_status,
-                type_booking=request.data['type_booking'],followup_remark=request.data['remarks'])
+                type_booking=request.data['type_booking'],followup_remark=request.data['remarks'], total = total)
             try:
                 location=CustomerProfile.objects.get(user_id=request.data['user_id']).location
             except Exception as e :
@@ -1383,6 +1517,30 @@ def followup_booking_view(request):
         print("checking doctor flag ")
         if request.data['doctor_flag']==0:  
           print("doctor flag is 0")
+
+          try:
+                location=CustomerProfile.objects.get(user_id=request.data['user_id']).location
+          except Exception as e :
+                location = Locations.objects.get(location = 'USA').location_id
+          try:
+             specialization=DoctorProfiles.objects.get(user_id=doctor_id).specialization
+             print("specialization",specialization,location)
+             if request.data['session_type'] == 'couple':
+              price=Plans.objects.get(speciality=specialization,location_id=location, doctor_id = request.data['senior_doctor']).price_for_couple
+             else:
+              price=Plans.objects.get(speciality=specialization,location_id=location, doctor_id = request.data['senior_doctor']).price_for_single
+
+          except Exception as e :
+            print("exception in specialization plans-------------",e)
+            specialization=None
+            #price=None
+            price=0
+          try:
+            currency = Locations.objects.get(location_id = location).currency
+          except Exception as e:
+            currency = Locations.objects.get(location = 'USA').currency
+          total = str(price) + ' ' + currency
+
           appointment =AppointmentHeader.objects.create(
           user_id=request.data['user_id'], 
           category_id=request.data['category_id'],
@@ -1393,26 +1551,11 @@ def followup_booking_view(request):
           gender_pref=request.data['gender_pref'],
           appointment_status=appointment_status,
           senior_doctor=doctor_id,
-          type_booking=request.data['type_booking'])
+          type_booking=request.data['type_booking'],
+          payment_gateway=request.data['payment_gateway'],
+          total = total)
           DoctorMapping.objects.create(appointment_id=appointment.appointment_id,mapped_doctor=doctor_id,
           doctor_flag="senior")
-          try:
-                location=CustomerProfile.objects.get(user_id=request.data['user_id']).location
-          except Exception as e :
-                location = Locations.objects.get(location = 'USA').location_id
-          try:
-           specialization=DoctorProfiles.objects.get(user_id=doctor_id).specialization
-           print("specialization",specialization,location)
-           if request.data['session_type'] == 'couple':
-            price=Plans.objects.get(speciality=specialization,location_id=location, doctor_id = request.data['senior_doctor']).price_for_couple
-           else:
-            price=Plans.objects.get(speciality=specialization,location_id=location, doctor_id = request.data['senior_doctor']).price_for_single
-        
-          except Exception as e :
-            print("exception in specialization plans-------------",e)
-            specialization=None
-            #price=None
-            price=0
           print("plans","specialization",price,specialization)
           invoice_obj=Invoices.objects.create(
             appointment_id=appointment.appointment_id,
@@ -1440,6 +1583,26 @@ def followup_booking_view(request):
             
         if request.data['doctor_flag']==1:  
           print("doctor flag is 1")
+          session_type = request.data['session_type']
+          user_location = CustomerProfile.objects.get(user_id = request.data['user_id']).residence_location
+          try:
+              if session_type == 'couple':
+                  plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_couple
+              else:
+                  plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_single
+          except Exception as e:
+              print(e)
+              if session_type == 'couple':
+                  plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_couple
+              else:
+                  plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_single
+            
+          try:
+              currency = Locations.objects.get(location = user_location).currency
+          except Exception as e:
+              currency = Locations.objects.get(location = 'USA').currency
+          total = str(plan) + ' ' + currency 
+
           appointment =AppointmentHeader.objects.create(
           user_id=request.data['user_id'], 
           category_id=request.data['category_id'],
@@ -1500,27 +1663,45 @@ def followup_booking_view(request):
         AppointmentHeader.objects.filter(appointment_id=appointment.appointment_id).update(senior_meeting_link=meet_link, appointment_status = 1)
         AppointmentHeader.objects.filter(appointment_id=appointment.appointment_id).update(senior_meeting_link=meet_link, appointment_status = 1)
 
-        user = AppointmentHeader.objects.filter(appointment_id=appointment.appointment_id).user_id
-        if CustomerProfile.objects.filter(user_id = user).confirmation_choice == 'Whats App':
-            pass
-        else:
-            doctor_bio,profile_pic=get_doctor_bio(doctor_id)
-            subject = ' Yes! Your follow-up consultation is confirmed'
-            html_message = render_to_string('order_followup.html', {'appointment_id': appointment.appointment_id,
-            "doctor_name":get_users_name(doctor_id),"name":get_users_name(request.data['user_id']),
-            "meet_link":meet_link,"specialization":get_doctor_specialization(doctor_id),'date':appointment_date,
-            "time":time_slot_id,"doctor_bio":doctor_bio,"profile_pic":profile_pic
-            })
-            plain_message = strip_tags(html_message)
-
+        user = AppointmentHeader.objects.get(appointment_id=appointment.appointment_id).user_id
+        doctor_bio,profile_pic=get_doctor_bio(doctor_id)
+        if CustomerProfile.objects.get(user_id = user).confirmation_choice == 'Whats App':
             try:
+                subject = ' Yes! Your consultation is confirmed'
+                html_message = render_to_string('consultation_confirmation_customer.html', {'appointment_id': appointment.appointment_id,
+                "doctor_name":get_users_name(doctor_id),"name":get_users_name(request.data['user_id']),
+                "meet_link":meet_link,"specialization":get_doctor_specialization(doctor_id),"date":appointment_date,"time":time_slot_id,
+                "doctor_bio":doctor_bio,"profile_pic":profile_pic})
+                plain_message = strip_tags(html_message)
                 from_email = 'wecare@inticure.com'
-                to = user_email
                 cc = "nextbighealthcare@inticure.com"
-                mail.send_mail(subject, plain_message, from_email, [to],[cc] ,html_message=html_message)
+                to = user_email
+                #to="gopika197.en@gmail.com"
+                mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
             except Exception as e:
                 print(e)
                 print("Email Sending error")
+        else:
+            if 'followup' in request.data and request.data['followup'] == False:
+                pass
+            else:
+                doctor_bio,profile_pic=get_doctor_bio(doctor_id)
+                subject = ' Yes! Your follow-up consultation is confirmed'
+                html_message = render_to_string('order_followup.html', {'appointment_id': appointment.appointment_id,
+                "doctor_name":get_users_name(doctor_id),"name":get_users_name(request.data['user_id']),
+                "meet_link":meet_link,"specialization":get_doctor_specialization(doctor_id),'date':appointment_date,
+                "time":time_slot_id,"doctor_bio":doctor_bio,"profile_pic":profile_pic
+                })
+                plain_message = strip_tags(html_message)
+
+                try:
+                    from_email = 'wecare@inticure.com'
+                    to = user_email
+                    cc = "nextbighealthcare@inticure.com"
+                    mail.send_mail(subject, plain_message, from_email, [to],[cc] ,html_message=html_message)
+                except Exception as e:
+                    print(e)
+                    print("Email Sending error")
             
             try:
                 subject = 'Appointment Confirmation'

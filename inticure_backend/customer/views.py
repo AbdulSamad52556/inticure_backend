@@ -243,7 +243,8 @@ def success_view(request,temp_id):
        Transactions.objects.create(invoice_id=invoice_id,transaction_amount=total_amount,payment_status=1)
     if temp_qset.coupon_id != 0:
       CouponRedeemLog.objects.create(coupon_id=temp_qset.coupon_id,user_id=temp_qset.user_id)
-    return redirect("https://customers.inticure.online/payment_success")
+    payment_gateway = 'stripe'
+    return redirect(f"https://customers.inticure.online/payment_success?payment_gateway={payment_gateway}")
 
 
 def failed_view(request,temp_id):
@@ -259,7 +260,7 @@ def failed_view(request,temp_id):
     except:
       print('Transaction data unavailable')  
     data['key'] = settings.STRIPE_PUBLISHABLE_KEY
-    payment_gateway = 'stript'
+    payment_gateway = 'stripe'
     return redirect(f"https://customers.inticure.online/payment_failure?payment_gateway={payment_gateway}")
 
 def success_view2(request,temp_id):

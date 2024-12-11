@@ -636,6 +636,17 @@ def timeslots(request):
         ).values_list('doctor_id', flat=True)
 
     print(doctors)
+    country = 0
+    if 'country' in request.data and request.data['country'] != "":
+        country = request.data['country']
+    else:
+        try:
+            user = User.objects.get(email = request.data['user_email'])
+            customer = CustomerProfile.objects.get(user_id = user.id)
+            country = customer.residence_location
+        except Exception as e:
+            print(e)
+            
     matching_user_ids = DoctorLanguages.objects.filter(doctor_id__in=doctors, languages = request.data['language']).values_list('doctor_id', flat=True)
     if len(matching_user_ids) == 0:
         matching_user_ids = DoctorLanguages.objects.filter(doctor_id__in=doctors).values_list('doctor_id', flat=True)
@@ -654,7 +665,7 @@ def timeslots(request):
     dr_details['specialization'] = available_dr.specialization
     dr_details['bio'] = available_dr.doctor_bio
     try:
-        location = Locations.objects.get(location = request.data['country'])
+        location = Locations.objects.get(location = country)
     except Exception as e:
         location = Locations.objects.get(location = 'USA')
     print(location)
@@ -709,10 +720,12 @@ def appointment_status_update_view(request):
             plan = Plans.objects.get(doc_name = 'Junior doctor', location_id = location.location_id).price_for_single
 
         if appointment.escalated_date:
-            today = datetime.datetime.now().date()
-            escalated_datetime = datetime.combine(today, appointment.escalated_time)
-            
-            now = datetime.now()
+
+            appointment_time = datetime.datetime.strptime(appointment.escalated_time_slot, "%I:%M%p").time()
+            # appointment_date = datetime.datetime.strptime(appointment.escalated_date, "%Y-%m-%d")
+            escalated_datetime = datetime.datetime.combine(appointment.escalated_date, appointment_time)
+
+            now = datetime.datetime.now()
             time_72_hours = now + timedelta(hours=72)
             time_7_days = now + timedelta(days=7)
             
@@ -720,6 +733,7 @@ def appointment_status_update_view(request):
                 refund_amt = plan * 0.5
                 appointment.refund = f"{refund_amt} {location.currency}"
                 appointment.save()
+                print(refund_amt)
 
                 try:
                     refund_message = f"""
@@ -773,10 +787,10 @@ def appointment_status_update_view(request):
                     print('Email send error to wecare@inticure.com')
 
             elif escalated_datetime > time_7_days:
-                refund = f"{plan} {location.currency}"
-                appointment.refund = refund
+                refund_amt = f"{plan} {location.currency}"
+                appointment.refund = refund_amt
                 appointment.save()
-
+                print(refund_amt)
                 try:
                     refund_message = f"""
                         <html>
@@ -839,15 +853,17 @@ def appointment_status_update_view(request):
                     print("Email Sending error")
                 print("Escalated time is less than or equal to 72 hours from now.")
         else:
-            today = datetime.datetime.now().date()
-            escalated_datetime = datetime.combine(today, appointment.appointment_time_slot_id)
-            
-            now = datetime.now()
+            appointment_time = datetime.datetime.strptime(appointment.appointment_time_slot_id, "%I:%M%p").time()
+            # appointment_date = datetime.datetime.strptime(appointment.appointment_date, "%Y-%m-%d")
+            escalated_datetime = datetime.datetime.combine(appointment.appointment_date, appointment_time)
+
+            now = datetime.datetime.now()
             time_72_hours = now + timedelta(hours=72)
             time_7_days = now + timedelta(days=7)
             
             if escalated_datetime > time_72_hours and escalated_datetime <= time_7_days:
                 refund_amt = plan * 0.5
+                print(refund_amt)
                 appointment.refund = f"{refund_amt} {location.currency}"
                 appointment.save()
                 try:
@@ -902,8 +918,8 @@ def appointment_status_update_view(request):
                     print('Email send error to wecare@inticure.com')
 
             elif escalated_datetime > time_7_days:
-                refund = f"{plan} {location.currency}"
-                appointment.refund = refund
+                refund_amt = f"{plan} {location.currency}"
+                appointment.refund = refund_amt
                 appointment.save()
 
                 try:
@@ -959,6 +975,7 @@ def appointment_status_update_view(request):
 
             else:
                 try:
+                    refund_amt = 0
                     subject = 'order cancelled'
                     from_email = "nextbighealthcare@inticure.com"
                     to = 'abdulsamad52556@gmail.com'
@@ -969,6 +986,7 @@ def appointment_status_update_view(request):
                     print("Email Sending error")
                 print("Escalated time is less than or equal to 72 hours from now.")
         try:
+            print('refund_amount', refund_amt)
             create_refund(appointment_id)
             subject = 'Order Cancelled'
             html_message = render_to_string('order_cancellation.html', {
@@ -986,7 +1004,7 @@ def appointment_status_update_view(request):
               sms_service.send_message(
            "Hi There, Your Appointment #%s has been cancelled Please refer email for more information"
             %(appointment_id),
-                "+91" + str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
+                "+91" + str(CustomerProfile.objects.get(user_id=appointment.user_id).mobile_number))
         except Exception as e:
               print(e)
               print("MESSAGE SENT ERROR")
@@ -995,7 +1013,7 @@ def appointment_status_update_view(request):
             subject = 'Order Marked No Show'
             html_message = render_to_string('order_no_show.html', {
             'is_doctor':0,
-            'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
+            'email':get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
             plain_message = strip_tags(html_message)
             from_email = 'wecare@inticure.com'
             to = get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
@@ -1171,7 +1189,7 @@ def get_users_name(user_id):
     try:
         print(user_id)
         doc = User.objects.get(id=user_id)
-        users_name = doc.first_name + doc.last_name
+        users_name = doc.first_name +' '+ doc.last_name
     except Exception as e:
         # print("except", e)
         users_name = ""
@@ -1399,7 +1417,7 @@ def prescriptions_text_view(request):
                     print('entered into email')
                     subject = 'Your Appointment Prescriptions'
                     html_message = render_to_string('prescriptions.html', {"doctor_flag":0,
-                        'email':get_user_mail(AppointmentHeader.objects.get(
+                        'email':get_users_name(AppointmentHeader.objects.get(
                     appointment_id=appointment_id).user_id)})
                     plain_message = strip_tags(html_message)
                     from_email = 'wecare@inticure.com'
@@ -1766,10 +1784,28 @@ def escalate_appointment_view(request):
     appoint = AppointmentHeader.objects.get(appointment_id=appointment_id)
     JuniorDoctorSlots.objects.filter(doctor_id = appoint.junior_doctor,date = appoint.appointment_date, time_slot = appoint.appointment_time_slot_id).update(is_active = 0)
 
+    user_location = CustomerProfile.objects.get(user_id = request.data['user_id']).residence_location
+    try:
+        if session_type == 'couple':
+            plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_couple
+        else:
+            plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_single
+    except Exception as e:
+        print(e)
+        if session_type == 'couple':
+            plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_couple
+        else:
+            plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_single
+        
+    try:
+        currency = Locations.objects.get(location = user_location).currency
+    except Exception as e:
+        currency = Locations.objects.get(location = 'USA').currency
+    total = str(plan) + ' ' + currency 
     AppointmentHeader.objects.filter(appointment_id=appointment_id).update(
         appointment_status=appointment_status,
         escalated_time_slot=start_time,
-        escalated_date=appointment_date,senior_doctor=doctor_id, session_type = session_type, payment_status = False)
+        escalated_date=appointment_date,senior_doctor=doctor_id, session_type = session_type, payment_status = False, total = total)
     
     SeniorDoctorAvailableTimeSLots.objects.filter(doctor_id = doctor_id, date = appointment_date, time_slot = start_time).update(is_active = 1)
     try:
@@ -2801,10 +2837,13 @@ def specialization_timeslot_view(request):
                     specialization=DoctorProfiles.objects.get(user_id=doctor_id).specialization
                     # duration=DoctorSpecializations.objects.get(specialization=specialization).time_duration
                     filter['specialization']=specialization
-                    try:
-                        user_ids=DoctorLanguages.objects.filter(languages=doctor_qset.language_pref, doctor_id=request.data['user_id']).values_list('doctor_id',flat=True)
-                    except:
-                        user_ids=DoctorLanguages.objects.filter(languages=doctor_qset.language_pref).values_list('doctor_id',flat=True)
+                    if 'regular' in request.data and request.data['regular'] == 'regular':
+                        user_ids = [doctor_qset.senior_doctor]
+                    else:
+                        try:
+                            user_ids=DoctorLanguages.objects.filter(languages=doctor_qset.language_pref, doctor_id=request.data['user_id']).values_list('doctor_id',flat=True)
+                        except:
+                            user_ids=DoctorLanguages.objects.filter(languages=doctor_qset.language_pref).values_list('doctor_id',flat=True)
 
                     print(user_ids)
                     if len(user_ids) == 0:
@@ -3012,6 +3051,229 @@ def specialization_timeslot_view_reschedule(request):
 
             })
 
+
+@api_view(['POST'])
+def available_slots_reschedule_view(request):
+        print('entered')
+        filter={}
+        time_slot=[]
+        time_solt_data={}
+        preferred_one = True
+        preferred_gender = True
+        both_preference = True
+        print(request.data)
+        if "language" in request.data and request.data['language'] != "":
+            user_ids=DoctorLanguages.objects.filter(languages=request.data['language']).values_list('doctor_id',flat=True)
+            print(user_ids)
+            if len(user_ids) == 0:
+                user_ids=DoctorLanguages.objects.filter(languages='English').values_list('doctor_id',flat=True)
+                preferred_one = False
+            filter['user_id__in']=user_ids
+        print('filter',filter)
+        if "gender" in request.data and request.data['gender'] != "":
+          filter['gender']=request.data['gender']
+        else:
+            filter['gender__in']=['male,female']
+        if "doctor" in request.data and request.data['doctor'] != "":
+            filter['doctor_flag']=request.data['doctor']
+
+        print('filter',filter)
+        
+        if "appointment_id" in request.data and request.data['appointment_id'] != "":
+            try:
+                print("Appoint-id")
+                doctor_qset=AppointmentHeader.objects.get(appointment_id=request.data['appointment_id'])
+                doctor_id=doctor_qset.junior_doctor
+            except Exception as e:
+                print("EXcept",e)
+                doctor_id=None
+            print(doctor_id,"doc id")
+         
+            base_date = doctor_qset.escalated_date if doctor_qset.escalated_date else doctor_qset.appointment_date
+            end_date = base_date + timedelta(days=3)
+
+            objects_filter=DoctorAvailableDates.objects.filter(doctor_id=doctor_id,
+                        date__gte=datetime.datetime.now().date() + timedelta(days=1), date__lte = end_date)
+        else:
+            doctor_id = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+            print(doctor_id,"@@@@@@@@@@@@@@@@@@@@@@@@@@@@doctors available")
+            objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=doctor_id,
+                        date__gte=datetime.datetime.now().date() + timedelta(days=1))
+        working_dates_serializer=WorkingDateSerializer(objects_filter,many=True).data
+        print('lasdjkf ',objects_filter)
+        if len(objects_filter) == 0:
+            preferred_one = False
+            filter2 = {}
+            print(filter2)
+            user_ids=DoctorLanguages.objects.filter(languages='English').values_list('doctor_id',flat=True)
+            filter2['user_id__in']=user_ids
+            if "gender" in request.data and request.data['gender'] != "":
+                filter2['gender']=request.data['gender']
+            if "doctor" in request.data and request.data['doctor'] != "":
+                filter2['doctor_flag']=request.data['doctor']
+
+            print('filter',filter2)
+            
+            if "appointment_id" in request.data and request.data['appointment_id'] != "":
+                try:
+                    print("Appoint-id")
+                    doctor_qset=AppointmentHeader.objects.get(appointment_id=request.data['appointment_id'])
+                    doctor_id=doctor_qset.junior_doctor
+                except Exception as e:
+                    print("EXcept",e)
+                    doctor_id=None
+                print(doctor_id,"doc id")
+                base_date = doctor_qset.escalated_date if doctor_qset.escalated_date else doctor_qset.appointment_date
+                end_date = base_date + timedelta(days=3)
+                objects_filter=DoctorAvailableDates.objects.filter(doctor_id=doctor_id,
+                            date__gte=datetime.datetime.now().date() + timedelta(days=1), date__lte=end_date)
+            else:
+                doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
+                print(doctor_id,"@@@@@@@@@@@@@@@@@@@@@@@@@@@@doctors available2")
+                objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=doctor_id,
+                            date__gte=datetime.datetime.now().date() + timedelta(days=1))
+            working_dates_serializer=WorkingDateSerializer(objects_filter,many=True).data
+
+            if len(objects_filter) == 0:
+                preferred_one = False
+                preferred_gender = False
+                filter3 = {}
+                print(filter3)
+                user_ids=DoctorLanguages.objects.filter(languages='English').values_list('doctor_id',flat=True)
+                filter3['user_id__in']=user_ids
+                if "doctor" in request.data and request.data['doctor'] != "":
+                    filter3['doctor_flag']=request.data['doctor']
+               
+                print('filter',filter3)
+                
+                if "appointment_id" in request.data and request.data['appointment_id'] != "":
+                    try:
+                        print("Appoint-id")
+                        doctor_qset=AppointmentHeader.objects.get(appointment_id=request.data['appointment_id'])
+                        doctor_id=doctor_qset.junior_doctor
+                    except Exception as e:
+                        print("EXcept",e)
+                        doctor_id=None
+                    print(doctor_id,"doc id")
+                    base_date = doctor_qset.escalated_date if doctor_qset.escalated_date else doctor_qset.appointment_date
+                    end_date = base_date + timedelta(days=3)
+                    objects_filter=DoctorAvailableDates.objects.filter(doctor_id=doctor_id,
+                                date__gte=datetime.datetime.now().date() + timedelta(days=1), date__lte=end_date)
+                else:
+                    doctor_id = custom_filter(DoctorProfiles, filter3).values_list('user_id',flat=True)
+                    print(doctor_id,"@@@@@@@@@@@@@@@@@@@@@@@@@@@@doctors available3")
+                    objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=doctor_id,
+                                date__gte=datetime.datetime.now().date() + timedelta(days=1))
+                working_dates_serializer=WorkingDateSerializer(objects_filter,many=True).data
+
+        print('objects_filter ',objects_filter)
+        print('working_dates_serializer ',working_dates_serializer)
+        print("date____________________",objects_filter.values_list('date'))
+        for working_hour in working_dates_serializer:
+            print(working_hour['date'],"working hour date")
+            try:
+                doctor_calender=DoctorCalenderUpdate.objects.values_list('doctor_id',flat=True)
+                print(doctor_calender)
+            except:
+                doctor_calender=None
+            #print("doctor_calendeer",doctor_calender)
+            if doctor_calender:
+                print("calender-")
+                working_times_from=DoctorCalenderUpdate.objects.filter(
+                        doctor_id__in=doctor_calender)
+                timeslot_added=DoctorAddedTimeSlots.objects.filter(doctor_id=working_hour['doctor_id'],
+                        date=working_hour['date']).values_list('slot',flat=True)
+            else:
+                working_times_from=[]
+                timeslot_added=[]
+            print('2148 ', working_hour)
+            jr_doc_added_slots=JuniorDoctorSlotsSerializer(JuniorDoctorSlots.objects.filter(
+                doctor_id=working_hour['doctor_id'],date=working_hour['date'],is_active=0),many=True).data
+            print ("compare date",working_hour['date'],working_hour['doctor_id'])
+            # print("jr_doc_added_slots",jr_doc_added_slots)
+            # time_solt_data = {"date": working_hour['date'],"time_slots": TimeSlotSerializer(
+            #         Timeslots.objects.filter(id__in=timeslot_added), many=True ).data}
+            time_solt_data = {"date": working_hour['date'],"time_slots":jr_doc_added_slots}
+            # print('2144',time_solt_data)
+            if len(time_slot) > 0:
+                print("here")
+                found_date = False
+                for i, date in enumerate(time_slot):
+                    print("for loop")
+                    print ("compare date",date['date'],working_hour['date'])
+                    if date["date"] == working_hour['date']:
+                        print("date",date['date'])
+                        print(date['time_slots'])
+                        found_date = True
+                        for slot in time_solt_data['time_slots']:
+                            duplicate_found = False  
+                            for slot2 in date['time_slots']:
+                                if slot['time_slot'] == slot2['time_slot']:
+                                    duplicate_found = True
+                            
+                            if not duplicate_found:
+                                date['time_slots'].append(slot)
+
+                        if  len(date['time_slots']) < len(time_solt_data['time_slots']) :
+                            print("i",i)
+                            time_slot.pop(i)
+                            print("poped timeslot",time_slot)
+                            if len(time_solt_data['time_slots']) > 0 :
+                                time_slot.append(time_solt_data)
+                            #time_slot.append(time_solt_data)
+                            print("affed timeslot",time_slot)
+                            break
+                if not found_date:
+                    print("append",time_solt_data)
+                    print("time slot",time_slot)
+                    if len(time_solt_data['time_slots'])>0:
+                        time_slot.append(time_solt_data)
+            else:
+                print("else")
+                if len(time_solt_data['time_slots']) > 0 :
+                    # print(time_solt_data)
+                    time_slot.append(time_solt_data)
+        print("time_solt_data",time_solt_data)
+        print("time",time_slot)
+        if len(time_slot) == 0:
+            print(time_slot)
+            print('2187 time slots are not available it is showing zero')
+            return Response({
+            'response_code': 404,
+            'status': 'No Data Available',
+            "slots":time_slot
+
+            })
+        else:
+            print('  2140  ')
+
+            def sort_time_slots(data):
+                for day_data in data:
+                    day_data['time_slots'] = sorted(
+                        day_data['time_slots'],
+                        key=lambda slot: datetime.datetime.strptime(slot['time_slot'], '%I:%M%p')
+                    )
+                return data
+            
+            sorted_timeslot= sorted(time_slot, key=lambda k: k['date'])
+            for data in sorted_timeslot:
+                data['time_slots'] = sorted(
+                data['time_slots'],
+                key=lambda k: k['junior_doctor_slot_id']
+                )
+            sorted_data = sort_time_slots(sorted_timeslot)
+            print('2643', sorted_data)
+            print('2197 ', sorted_timeslot)
+            return Response({
+            'response_code': 200,
+            'status': 'Ok',
+            "slots":time_slot,
+            "Message":"The appointment may take upto 10 minutes",
+            'preferred_one':preferred_one,
+            'preferred_gender':preferred_gender
+        })
+
+
 @api_view(['POST'])
 def available_slots_view(request):
         print('entered')
@@ -3160,7 +3422,7 @@ def available_slots_view(request):
                         for slot in time_solt_data['time_slots']:
                             duplicate_found = False  
                             for slot2 in date['time_slots']:
-                                if slot['time_slot'] == slot2['time_slot'] and slot['end_time'] == slot2['end_time']:
+                                if slot['time_slot'] == slot2['time_slot']:
                                     duplicate_found = True
                             
                             if not duplicate_found:
@@ -3958,7 +4220,7 @@ def appointment_detail_view(request):
                 users['create_by_user_name'] = ""
 
            try:
-               invoice_followup=Invoices.objects.get(appointment_id=appointment_data['appointment_id'])
+               invoice_followup=Invoices.objects.filter(appointment_id=appointment_data['appointment_id']).first()
                users['invoice_id_followup']=invoice_followup.invoice_id
                users['invoice_status_followup']=invoice_followup.status
            except Exception as e:
@@ -3984,6 +4246,7 @@ def appointment_detail_view(request):
            appointment_data['is_reported'] = 0
        try:
         appointment_data["reported_count"]=ReportCustomer.objects.get(appointment_id=appointment_data['appointment_id']).report_count
+        appointment_data['patient_medical_history']=get_patient_medical_details(user_id,appointment_data['appointment_id'])
        except:
         appointment_data["reported_count"]=0
         appointment_data['patient_medical_history']=get_patient_medical_details(user_id,appointment_data['appointment_id'])

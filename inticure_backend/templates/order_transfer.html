@@ -165,7 +165,7 @@
 		<!-- Email Body -->
 		<div class="email-body">
       		{% if doctor_flag == 0 %}
-			  <p><strong>Hello {{email}}</strong>,</p>
+			  <p><strong>Hi {{email}}</strong>,</p>
 			  <p>This mail is regarding a recent order placed on Inticure </p>
 			  <p>We are sorry to inform you that the order #{{appointment_id}} has been transfered to another doctor due to doctor inconvenience </p>
 			  <p>Your transfered doctor is {{doctor}} and he will take over the appointment</p>
@@ -173,7 +173,7 @@
 			  <p class="mt-4">---- <br>Regards<br>Inticure Care</p>
       		{% endif %}
       		{% if doctor_flag == 1 %}
-			  <p><strong>Hello {{email}}</strong>,</p>
+			  <p><strong>Hi {{email}}</strong>,</p>
 			  <p>This mail is regarding an order transfer update </p>
 			  <p>an order #{{appointment_id}} has been transfered to you due to doctor inconvenience </p>
 			  <p>requesting you to take over the appointment</p>

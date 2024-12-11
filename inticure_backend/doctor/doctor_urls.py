@@ -9,7 +9,7 @@ from .views import appointment_close_view, appointment_list_view, appointment_st
     create_followup_reminder_view, followup_reminder_list_view, create_discussion_view, discussion_list_view,\
     working_hour_view,working_hour_list_view,calender_view,timeslot_list_view,specialization_timeslot_view,\
     calender_edit_view,appointment_patient_history,calender_add_view,escalate_appointment_view, doctors_list_view, escalated_one, doctor_time_slots,appointment_completed, timeslots,\
-    specialization_timeslot_view_reschedule, block_doctor, unblock_doctor, is_dr_blocked, login_from_admin
+    specialization_timeslot_view_reschedule, block_doctor, unblock_doctor, is_dr_blocked, login_from_admin, available_slots_reschedule_view
 
 urlpatterns = [
     path('appointment_list', appointment_list_view, name='appointment_list'),
@@ -32,6 +32,7 @@ urlpatterns = [
     path('senior_doctor_transfer',senior_doctor_transfer_view,name='senior_doctor_transfer'),
     path('junior_doctor_transfer',junior_doctor_transfer_view,name='junior_doctor_transfer'),
     path('available_slots',available_slots_view,name='available_slots'),
+    path('available_slots_reschedule',available_slots_reschedule_view,name='available_slots_reschedule'),
     path('create_followup_reminder',create_followup_reminder_view,name='create_followup_reminder'),
     path('followup_reminder_list',followup_reminder_list_view,name='followup_reminder_list'),
     path('create_discussion',create_discussion_view,name='create_discussion'),
