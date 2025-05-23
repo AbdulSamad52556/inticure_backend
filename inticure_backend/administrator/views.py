@@ -19,7 +19,7 @@ from rest_framework import status,viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
-from datetime import datetime
+from datetime import datetime, timedelta, date
 # Models and Serializers
 from doctor.views import get_users_name,get_doctor_specialization,\
     get_patient_medical_details
@@ -29,20 +29,21 @@ from django.contrib.auth.models import User
 from analysis.models import Options, Questionnaire,AppointmentHeader,OtpVerify,EmailOtpVerify,Invoices,\
      AppointmentQuestions, AppointmentAnswers
 from doctor.models import DoctorProfiles, DoctorLanguages,DoctorMapping,Prescriptions,PrescriptionsDetail,\
-    ConsumptionTime,Medications,AppointmentReshedule,AppointmentTransferHistory
+    ConsumptionTime,Medications,AppointmentReshedule,AppointmentTransferHistory, UnitPrice, DoctorSpecializations
 from analysis.serializers import CategorySerializer, QuestionnaireSerializer, OptionsSerializer
     
 from doctor.serializer import DoctorProfileSerializer,AppointmentHeaderSerializer,PrescriptionTextSerializer,\
     MedicationsSerializer,AppointmentQuestionsSerializer,AppointmentAnswersSerializer,PrescriptionSerializer
 from .serializer import PlansSerializer, UserSerializer,LocationSerializer,\
-    PayoutsSerializer,TransactionsSerializer,LanguageSerializer,CouponCodeSerializer,InticureEarningsSerializer
+    PayoutsSerializer,TransactionsSerializer,LanguageSerializer,CouponCodeSerializer,InticureEarningsSerializer,\
+    NotificationSelializer, DoctorSpecializationSerializer
 from .models import LanguagesKnown, Locations, Plans,Payouts, ReportCustomer,Transactions,TotalPayouts,\
-    DiscountCoupons,TotalEarnings,InticureEarnings, Duration
+    DiscountCoupons,TotalEarnings,InticureEarnings, Duration, Notification
 from common.views import encryption_key 
 from analysis.views import generateOTP
 from common.twilio_test import MessageClient
 
-from analysis.views import get_currency,get_doctor_location,get_user_mail, get_duration
+from analysis.views import get_currency,get_doctor_location,get_user_mail, get_duration, get_unit_price, get_doctor_bio
 from common.views import get_category_name
 
 sms_service = MessageClient()
@@ -150,6 +151,39 @@ def sign_in_view(request):
             'status': 'Unauthorized',
             'message': 'Username/password combination invalid.'
         }, status=status.HTTP_401_UNAUTHORIZED)
+    
+@api_view(['GET'])
+def get_notifications_view(request):
+    try:
+        notifications = Notification.objects.all().order_by('-id')
+        
+        serialized_notifications = NotificationSelializer(notifications, many=True).data
+        
+        user_ids = {n['user_id'] for n in serialized_notifications if n['user_id'] is not None}
+        user_names = {user.id: get_users_name(user.id) for user in User.objects.filter(id__in=user_ids)}
+        
+        for notifi in serialized_notifications:
+            notifi['user_name'] = user_names.get(notifi['user_id'], "Unknown")
+        
+        return Response({
+            'response_code': 200,
+            'data': serialized_notifications,
+            'status': 'ok'
+        })
+    except Exception as e:
+        return Response({
+            'response_code': 500,
+            'message': f'An error occurred: {str(e)}',
+            'status': 'error'
+        }, status=500)
+    
+@api_view(['GET'])
+def notifications_opened_view(request):
+    try:
+        Notification.objects.filter(did_open = False).update(did_open = True)
+        return JsonResponse({'status': 'success', 'message': 'Modal open logged'})
+    except:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 @api_view(['POST'])
 def sign_in_otp_view(request):
@@ -229,7 +263,7 @@ def sign_in_otp_view(request):
                     pass
                 try:    
                     sms_service.send_message("Hi There, Your OTP for LogIn is:%s"%OTP,
-                    "+91" + str(request.data['mobile_num']))
+                    str(request.data['mobile_num']))
                 except Exception as e:
                     print(e)
                     print("MESSAGE SENT ERROR")
@@ -239,13 +273,16 @@ def sign_in_otp_view(request):
                         'status': 'Success',
                         'message': 'OTP Generated',
                         'otp': OTP,
-                        'email': User.objects.get(id = user_id).email
+                        'email': User.objects.get(id = user_id).email,
+                        'user_id': user_id
                     })
                 return Response({
                  'response_code': 200,
                     'status': 'Success',
                     'message': 'OTP Generated',
-                    'otp':OTP})
+                    'otp':OTP,
+                    'email': User.objects.get(id = user_id).email,
+                    'user_id': user_id})
             else:
                 print("USER_NONE")
                 return Response({
@@ -344,7 +381,7 @@ def sign_in_otp_view(request):
         try:
             OTP=OtpVerify.objects.get(mobile_number=request.data['mobile_num']).otp
             sms_service.send_message("Hi There, Your OTP for LogIn is:%s"%OTP,
-                "+91" + str(request.data['mobile_num']))
+                str(request.data['mobile_num']))
             return Response({
                  'response_code': 200,
                     'status': 'Success',
@@ -359,30 +396,23 @@ def sign_in_otp_view(request):
     if "otp" in request.data and request.data['otp']!="":
         try:
             if "mobile_num" in request.data and request.data['mobile_num']!="":
-               OtpVerify.objects.get(mobile_number=request.data['mobile_num'],otp=request.data['otp'])
-            #    OtpVerify.objects.get(mobile_number=request.data['mobile_num'],otp=request.data['otp']).delete()
                try:
-                  user_id=CustomerProfile.objects.get(mobile_number=request.data['mobile_num']).user_id
+                mob = request.data['mobile_num']
+                OtpVerify.objects.get(mobile_number=request.data['mobile_num'],otp=request.data['otp'])
+               except Exception as e:
+                print(e)
+                
+                OtpVerify.objects.get(mobile_number=request.data['mobile_num'],otp=request.data['otp'])
+
+               try:
+                  user_id=CustomerProfile.objects.get(mobile_number=mob).user_id
                except:
-                  user_id=DoctorProfiles.objects.get(mobile_number=request.data['mobile_num']).user_id
+                  user_id=DoctorProfiles.objects.get(mobile_number=mob).user_id
             if "email" in request.data and request.data['email']!="":
                 EmailOtpVerify.objects.get(email=request.data['email'],otp=request.data['otp'])
                 # EmailOtpVerify.objects.get(email=request.data['email'],otp=request.data['otp']).delete()
                 user_id=User.objects.get(email=request.data['email']).id
-                
-                try:
-                    subject = 'Login Confirmation'
-                    html_message = render_to_string('email_otp.html', {'email':request.data['email'],
-                    "confirm":1 })
-                    plain_message = strip_tags(html_message)
-                    # plain_message="account-created"
-                    from_email = 'wecare@inticure.com'
-                    to = request.data['email']
-                    cc = 'nextbighealthcare@inticure.com'
-                    mail.send_mail(subject, plain_message, from_email, [to], [cc],html_message=html_message)
-                except Exception as e:
-                    print(e)
-                    print("Email Sending error")
+       
 
             try:
                is_seniors=DoctorProfiles.objects.get(doctor_flag='senior',user_id=user_id)
@@ -531,6 +561,7 @@ def get_plan(request):
         data = {'plan_id':plan.id,'doctor_name':plan.doc_name,'speciality':plan.speciality,'price_for_single':plan.price_for_single,'price_for_couple':plan.price_for_couple,'currency':get_currency(plan.location_id)}
         location = Locations.objects.get(location_id = location_id)
         data['location_name'] = location.location
+        data['unit_price_for_single'], data['unit_price_for_couple'] = get_unit_price(plan_id)
         return JsonResponse(data)  
     
     except Exception as e:
@@ -548,6 +579,9 @@ def edit_plan(request):
         location = request.data['location_id']
         price_for_single = request.data['price_for_single']
         price_for_couple = request.data['price_for_couple']
+        unit_price_for_single = request.data['unit_price_for_single']
+        unit_price_for_couple = request.data['unit_price_for_couple']
+
         doctor = DoctorProfiles.objects.get(doctor_profile_id = doc_id)
         user = User.objects.get(id = doctor.user_id)
         plan = Plans.objects.filter(doctor_id=doc_id, location_id=location).update(
@@ -556,6 +590,11 @@ def edit_plan(request):
                 speciality=doctor.specialization,
                 doc_name=f'{user.first_name} {user.last_name}'
             )
+        if UnitPrice.objects.filter(doctor_id = doc_id).exists():
+            UnitPrice.objects.filter(doctor_id = doc_id).update(price_for_single=unit_price_for_single, price_for_couple=unit_price_for_couple)
+        else:
+            UnitPrice.objects.create(doctor_id = doc_id, price_for_single=unit_price_for_single, price_for_couple=unit_price_for_couple)
+        
         return Response({
             'response_code':200,
             'status':'ok',
@@ -613,6 +652,114 @@ def get_location(request):
         })
 
 @api_view(['POST'])
+def filter_view(request):
+    try:
+        specializations = DoctorSpecializations.objects.all()
+        locations = Locations.objects.all()
+        specializations_data = DoctorSpecializationSerializer(specializations, many=True).data
+        locations_data = LocationSerializer(locations, many=True).data
+        return Response({
+            'response_code': 200,
+            'status': 'success',
+            'specializations': specializations_data,
+            'locations': locations_data
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        print(f"Error in filter_view: {str(e)}")
+        
+        return Response({
+            'response_code': 400,
+            'status': 'failed',
+            'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['POST'])
+def make_accept_view(request):
+    try:
+        appointment_id = request.data.get('appointment_id')
+        if not appointment_id:
+            return Response({
+                'response_code': 400,
+                'status': 'Failed',
+                'message': 'appointment_id is required'
+            })
+
+        appointment = AppointmentHeader.objects.filter(appointment_id=appointment_id)
+        if not appointment.exists():
+            return Response({
+                'response_code': 400,
+                'status': 'Failed',
+                'message': 'Appointment not found'
+            })
+
+        appointment.update(appointment_status=1)
+        
+        try:
+
+            doctor_bio,profile_pic=get_doctor_bio(appointment.first().senior_doctor)
+            subject = ' Yes! Your consultation is confirmed'
+            html_message = render_to_string('consultation_confirmation_customer.html', {'appointment_id': appointment_id,
+            "doctor_name":get_users_name(appointment.first().senior_doctor),"name":get_users_name(appointment.first().user_id),
+            "meet_link":appointment.first().senior_meeting_link,"specialization":get_doctor_specialization(appointment.first().senior_doctor),
+            "date":appointment.first().appointment_date,"time":appointment.first().appointment_time_slot_id,
+            "doctor_bio":doctor_bio,"profile_pic":profile_pic})
+
+            plain_message = strip_tags(html_message)
+            from_email = 'wecare@inticure.com'
+            cc = "nextbighealthcare@inticure.com"
+            to = get_user_mail(appointment.first().user_id)
+            mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+        except Exception as e:
+            print(e)
+            Notification.objects.create(
+                user_id=appointment.first().user_id,
+                description=(
+                    f'Payment Email has not been sent to user '
+                    f'{get_users_name(appointment.first().user_id)} for the appointment '
+                    f'{appointment_id}, due to: {str(e)}'
+                )
+            )
+        try:
+            subject = 'Appointment Confirmation'
+            html_message = render_to_string('order_confirmation_doctor.html', {'appointment_id': appointment_id,
+            "name":get_users_name(appointment.first().user_id),"doctor_name":get_users_name(appointment.first().senior_doctor),'date':appointment.first().appointment_date,
+            "time":appointment.first().appointment_time_slot_id,"doctor_flag":2,"meet_link":appointment.first().senior_meeting_link})
+            plain_message = strip_tags(html_message)
+            from_email = 'wecare@inticure.com'
+            to = get_user_mail(appointment.first().senior_doctor)
+            cc = "nextbighealthcare@inticure.com"
+            mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+        except Exception as e:
+            print(e)
+            print("Email Sending error")
+            description = (
+                f"Appointment Confirmation Email has not been sent to doctor "
+                f"{get_users_name(appointment.first().senior_doctor)} for the appointment {appointment_id}, "
+                f"because of {str(e)}"
+            )
+            Notification.objects.create(user_id = appointment.first().senior_doctor, description = description)
+
+        return Response({
+            'response_code': 200,
+            'status': 'ok'
+        })
+    
+    except Exception as e:
+        print(e)
+        return Response({
+            'response_code': 400,
+            'status': 'Failed',
+            'message': 'An error occurred while processing your request'
+        })
+    
+    except Exception as e:
+        print(e)
+        return Response({
+                'response_code':400,
+                'status': 'Failed'
+            })
+
+@api_view(['POST'])
 def block_reschedule(request):
     try:
         appointment_id = request.data['appointment_id']
@@ -630,6 +777,7 @@ def block_reschedule(request):
                 'response_code':400,
                 'status': 'Failed'
             })
+    
 @api_view(['POST'])
 def can_reschedule(request):
     try:
@@ -723,10 +871,10 @@ def create_user(email,doc_fname,doc_lname,location,specialization,mobile_num,gen
 
                 try:
                     print('Encrypted user_id:', user_id.decode())  # Verify if this step is working
-                    mail.send_mail(subject, plain_message, from_email, [to], [cc],html_message=html_message,fail_silently=False)
+                    mail.send_mail(subject, plain_message, from_email, [to], [cc],html_message=html_message)
                 except Exception as e:
                     print(f"Error in sending email: {str(e)}")
-
+                    Notification.objects.create(user_id = user.id, description = f'Account Creation Email is not been send for the user {user.first_name} {user.last_name} because of {str(e)}')
                 return user.id
             except Exception as e:
                 print(e)
@@ -781,6 +929,11 @@ def doctor_create_view(request):
                 profile_pic=request.data['profile_pic']
                 DoctorProfiles.objects.filter(user_id=user_id).update(profile_pic=profile_pic,
                 profile_file_name=request.data['profile_file_name'],profile_file_size=request.data['profile_file_size'])
+            
+            otp = generateOTP()
+            
+            EmailOtpVerify.objects.create(email=request.data['email'], otp=otp)
+            OtpVerify.objects.create(mobile_number=request.data['mobile_num'], otp=otp)
         
         return Response({
                 'response_code': 200,
@@ -825,10 +978,10 @@ def doctor_list_view(request):
               user['user_fname']=queryset_user.first_name
               user['user_lname']=queryset_user.last_name
               user['user_mail']=queryset_user.email
-              try:
-                user['location']=Locations.objects.get(location_id=user['location']).location
-              except:
-                user['location']=""
+            #   try:
+            #     user['location']=Locations.objects.get(location_id=user['location']).location
+            #   except:
+            #     user['location']=""
               try:
                 doctor_languages=[]
                 doctor_obj=DoctorLanguages.objects.filter(doctor_id=user['user_id'])
@@ -838,7 +991,20 @@ def doctor_list_view(request):
                 user['language_known']=doctor_languages
               except:
                   user['language_known']=""
-           except:
+              otp = None
+              try:
+                  otp = EmailOtpVerify.objects.filter(email=queryset_user.email).first().otp
+              except Exception as e:
+                  print(e)
+                  try:
+                    otp = OtpVerify.objects.get(mobile_number=user['mobile_number']).otp
+                  except:
+                      otp = generateOTP()
+                      EmailOtpVerify.objects.create(email = queryset_user.email,otp = otp)
+                      OtpVerify.objects.create(mobile_number=user['mobile_number'], otp = otp)
+              user['password'] = otp
+           except Exception as e:
+              print(e)
               user['user_fname']=""
               user['user_lname']=""
               user['user_mail']=""
@@ -948,6 +1114,93 @@ def doctor_profile_edit_view(request):
                 {'response_code': 400,
                  'status': 'Ok',
                  'message': 'Invalid UserID'})
+
+@api_view(['POST'])
+def earnings_view2(request):
+    data = request.data
+
+    try:
+        doctor_id = DoctorProfiles.objects.get(user_id = data['doctor_id']).doctor_profile_id
+        unit_price = UnitPrice.objects.get(doctor_id=doctor_id)
+    except UnitPrice.DoesNotExist:
+        return Response({
+            'response_code': 404,
+            'status': 'error',
+            'message': 'Unit price not found for the doctor.'
+        })
+
+    today = datetime.today()
+
+    start_of_this_month = today.replace(day=1)
+    start_of_next_month = (start_of_this_month + timedelta(days=32)).replace(day=1)
+    start_of_previous_month = (start_of_this_month - timedelta(days=1)).replace(day=1)
+
+    appointments_for_single_this_month = (
+        AppointmentHeader.objects.filter(
+            senior_doctor=data['doctor_id'],
+            session_type__in=['single', 'individual'],
+            appointment_date__gte=start_of_this_month,
+            appointment_date__lt=start_of_next_month,
+            appointment_status__in=[2,6,8]
+        ).count() * int(unit_price.price_for_single)
+    )
+    appointments_for_couple_this_month = (
+        AppointmentHeader.objects.filter(
+            senior_doctor=data['doctor_id'],
+            session_type='couple',
+            appointment_date__gte=start_of_this_month,
+            appointment_date__lt=start_of_next_month,
+            appointment_status__in=[2,6,8]
+        ).count() * int(unit_price.price_for_couple)
+    )
+
+    appointments_for_single_previous_month = (
+        AppointmentHeader.objects.filter(
+            senior_doctor=data['doctor_id'],
+            session_type__in=['single', 'individual'],
+            appointment_date__gte=start_of_previous_month,
+            appointment_date__lt=start_of_this_month,
+            appointment_status__in=[2,6,8]
+        ).count() * int(unit_price.price_for_single)
+    )
+    appointments_for_couple_previous_month = (
+        AppointmentHeader.objects.filter(
+            senior_doctor=data['doctor_id'],
+            session_type='couple',
+            appointment_date__gte=start_of_previous_month,
+            appointment_date__lt=start_of_this_month,
+            appointment_status__in=[2,6,8]
+        ).count() * int(unit_price.price_for_couple)
+    )
+
+    appointments_for_single_total = (
+        AppointmentHeader.objects.filter(
+            senior_doctor=data['doctor_id'],
+            session_type__in=['single', 'individual'],
+            appointment_status__in=[2,6,8]
+        ).count() * int(unit_price.price_for_single)
+    )
+    appointments_for_couple_total = (
+        AppointmentHeader.objects.filter(
+            senior_doctor=data['doctor_id'],
+            session_type='couple',
+            appointment_status__in=[2,6,8]
+        ).count() * int(unit_price.price_for_couple)
+    )
+
+    total_amount_this_month = appointments_for_single_this_month + appointments_for_couple_this_month
+    total_amount_previous_month = appointments_for_single_previous_month + appointments_for_couple_previous_month
+    total_amount = appointments_for_single_total + appointments_for_couple_total
+
+    return Response({
+        'response_code': 200,
+        'status': 'ok',
+        'data': {
+            'total_amount_this_month': total_amount_this_month,
+            'total_amount_previous_month': total_amount_previous_month,
+            'total_amount': total_amount
+        }
+    })
 
 
 @api_view(['POST'])
@@ -1200,6 +1453,7 @@ def report_customer_view(request):
                 except Exception as e:
                     print(e)
                     print("Email Sending error")
+                    Notification.objects.create(user_id = request.data['customer_id'], description = f'The email banning the user was not sent., because of {str(e)}')
                 user=User.objects.get(id=request.data['customer_id'])
                 user.is_active= False
                 user.save()
@@ -1210,6 +1464,7 @@ def report_customer_view(request):
                 })
             except Exception as e:
                 print("report_customer_except",e)  
+                Notification.objects.create(user_id = request.data['customer_id'], description = f'User Banned Error, because of {str(e)}')
         else:
             try:
                 subject = 'Oh no…You have been reported'
@@ -1223,6 +1478,7 @@ def report_customer_view(request):
             except Exception as e:
                 print(e)
                 print("Email Sending error")
+                Notification.objects.create(user_id = request.data['customer_id'], description = f'The email reporting the user was not sent, because of {str(e)}')
 
             specialization=DoctorProfiles.objects.get(user_id=request.data['doctor_id']).specialization
             if specialization=="junior":
@@ -1243,6 +1499,13 @@ def report_customer_view(request):
             except Exception as e:
                 print(e)
                 print("Email Sending error")
+                Notification.objects.create(
+                    user_id=request.data['doctor_id'],
+                    description=(
+                        f'The email for doctor when action initiated against user '
+                        f'{get_users_name(request.data["customer_id"])} was not sent, because of {str(e)}'
+                    )
+                )
     else:
        report_count+=1
        ReportCustomer.objects.create(
@@ -1283,6 +1546,7 @@ def forgot_password_view(request):
         except Exception as e:
             print(e)
             print("Email Sending error")
+            
 
         return Response({
         'response_code': 200,
@@ -1306,16 +1570,16 @@ def application_action_view(request):
           else:
               print("0")
               DoctorProfiles.objects.filter(user_id=user_id).update(is_accepted=is_accepted)
-          print(encryption_key.encrypt(str(user_id).encode()))
-          encrypt_user_id=encryption_key.encrypt(str(user_id).encode())
           subject=''
+          user = User.objects.get(id=user_id).email
+          otp = OtpVerify.objects.get(email=user).otp
           if is_accepted==1:
             subject = 'Welcome to the inticure family!'
           if is_accepted==0:
             print("is accept....0")
             subject = 'Application Rejected!'
           html_message = render_to_string('account_creation_update.html', {'doctor_name':get_users_name(user_id),
-          "is_accepted":is_accepted,'salutation':'Dr'})
+          "is_accepted":is_accepted,'salutation':'Dr','otp':otp})
           plain_message = strip_tags(html_message)
           # plain_message="account-created"
           from_email = 'wecare@inticure.com'
@@ -1328,6 +1592,7 @@ def application_action_view(request):
           except Exception as e:
             print(e)
             print("Email Sending error")
+            Notification.objects.create(user_id = user_id, description = f'Welcome message has not been send to user {get_users_name(user_id)}, because of {str(e)}')
 
           return Response({
         'response_code': 200,
@@ -1459,7 +1724,12 @@ class PlansViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):            
         location_id = request.data.get('location_id')
         doctor_id = request.data.get('doctor_id')
-
+        unit_price_for_single = request.data.get('unit_price_for_single')
+        unit_price_for_couple = request.data.get('unit_price_for_couple')
+        if UnitPrice.objects.filter(doctor_id = doctor_id).exists():
+            print('unit exists for this doctor')
+        else:
+            UnitPrice.objects.create(doctor_id = doctor_id, price_for_single=unit_price_for_single, price_for_couple = unit_price_for_couple)
         if Plans.objects.filter(location_id=location_id, doctor_id=doctor_id).exists():
             return Response({
                 'response_code': 401,
@@ -1500,6 +1770,7 @@ class PlansViewSet(viewsets.ModelViewSet):
         for data in serializer:
             data['currency']=get_currency(data['location_id'])
             data['duration'] = get_duration(data['doctor_id'])
+            data['single_unit_price'], data['couple_unit_price'] = get_unit_price(data['doctor_id'])
         return Response(
                 {'response_code': 200,
                  'status': 'Ok',
@@ -1745,7 +2016,7 @@ class RefundViewSet(viewsets.ModelViewSet):
                 customer_id=None
 
             try:
-                subject = 'You Refund have been Processed'
+                subject = 'Your Refund have been Processed'
                 html_message = render_to_string('refund_completed.html', {"doctor_flag":0,
                     'name':get_users_name(customer_id)})
                 plain_message = strip_tags(html_message)
@@ -1757,6 +2028,7 @@ class RefundViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 print(e)
                 print("Email Sending error")
+                Notification.objects.create(user_id = customer_id, description = f'Refund processed Email has not been send, because of {str(e)}')
 
         Refund.objects.filter(pk=self.kwargs['pk']).update(**data)
         return Response(
@@ -1822,6 +2094,8 @@ def dashboard_view(request):
     appointment_list=[]
     if 'appointment_status' in request.data and request.data['appointment_status']:
             filter['appointment_status__in'] = request.data['appointment_status']
+    if 'upcoming' in request.data and request.data['upcoming'] == True:
+        filter['appointment_date__gte'] = date.today()
     queryset1 = custom_filter(AppointmentHeader, filter).order_by('-appointment_id')
     appointment_data = AppointmentHeaderSerializer(queryset1, many=True).data
     print(appointment_data)
@@ -1884,7 +2158,9 @@ def dashboard_view(request):
                      count+=1
          else:
              appointment_list.append(user)
-             count=AppointmentHeader.objects.exclude(appointment_status=3).count()
+             count=AppointmentHeader.objects.exclude(appointment_status__in=[3,6]).count()
+    
+    total_orders = AppointmentHeader.objects.all().count()
     doc_count=0
     custom_count=0
     if 'location' in request.data and request.data['location']:
@@ -1910,6 +2186,7 @@ def dashboard_view(request):
         "doctors_count":doc_count,
         "customers_count":custom_count,
         "total_appointments":count,
+        "total_orders":total_orders,
         "total_profit":"",
         "total_payout":""
         })

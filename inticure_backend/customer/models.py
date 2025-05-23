@@ -40,7 +40,7 @@ class RazorpayCustomer(models.Model):
 class TemporaryTransactionData(models.Model):
     temp_id=models.BigAutoField(primary_key=True)
     user_id=models.IntegerField()
-    currency=models.CharField(max_length=10,null=True)
+    currency=models.CharField(max_length=20,null=True)
     total_amount=models.IntegerField(null=True)
     appointment_id=models.IntegerField(null=True)
     discount=models.IntegerField(null=True)

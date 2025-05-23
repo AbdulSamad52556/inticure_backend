@@ -135,8 +135,13 @@
             const rzp = new Razorpay(options);
             rzp.on('payment.failed', function (response){
                 console.error("Payment failed", response.error);
-                alert("Oops! Something went wrong with your payment. Please try again.");
-                window.location.href = "https://customers.inticure.online/payment_failure";
+                if ("{{appointment_flag}}" === "first_appointment") {
+                    window.location.href = "https://analysis.inticure.online/payment_failure";
+                }
+                else{
+                    window.location.href = "https://customers.inticure.online/payment_failure";
+                }
+
             });
             rzp.open();
 

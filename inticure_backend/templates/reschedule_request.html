@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -26,6 +27,7 @@
 			position: relative;
 			text-align: center; /* center align the h1 tag */
 			width: 100%;
+			overflow:hidden;
 		}
 
 		.header p {
@@ -35,6 +37,7 @@
 			font-weight: 600;
 			font-size: 25px;
 			line-height: 35px;
+			width: calc(100% - 150px);
 		}
 	
 		
@@ -57,11 +60,12 @@
 		.image {
 			position: absolute;
 			top: 20px;
-			right: 20px;
+			left: 570px;
 			display: inline-block;
 			max-width: 150px;
-			height: auto;
+			height: 100%;
 			vertical-align: middle;
+			float:right;
 		}
 
 		.header-image {
@@ -121,13 +125,6 @@
 			width: 100%;
 			height:86px;
 		}
-		.email-body h5{
-			font-family: "DM Sans", sans-serif, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-			font-style: normal;
-			font-weight: 400;
-			font-size: 18px;
-			line-height: 25px;
-		}
 		.email-body p{
 			font-family: "DM Sans", sans-serif, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 			font-style: normal;
@@ -139,13 +136,26 @@
 			display: flex;
 			align-items: center;
 			padding-left: 196px;
-		}
+		  }
 		  
 		.social_logos img {
 			margin: 0 10px;
 			width: 25px; /* or any other desired width */
 			height: 25px; /* or any other desired height */
-		}
+		  }
+
+				 .mm-next-btn button {
+    /* background: #333; */
+    /* background: #34013f; */
+    background: #6A1B78;
+    border: none;
+    padding: 8px 18px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 600;
+    width: 191px;
+    color: #fff;
+    border-radius: 25px;
+}
 
 	</style>
 </head>
@@ -162,57 +172,37 @@
 		</div>
 		<!-- Header -->
 		<div class="header">
-			{% if is_accepted == 1 %}
-			<p>Congratulations! You are now a member of the inticure family.</p>
-			{% endif %}
-			{% if is_accepted == 0 %}
-			<p>Oh NO! Your Account has been Rejected.</p>
-			{% endif %}
+			    <p> We sincerely apologize for the inconvenience!
+                </p>
+			<img src="https://api.inticure.online/media/doctor_img.png" alt="Image" class="image" style="height:100%">
 		</div>
 
 		<!-- Email Body -->
 		<div class="email-body">
-			{% if is_accepted == 1 %}
      			<h4  style="font-family: "DM Sans", sans-serif, "Helvetica Neue", Arial, "Noto Sans", sans-serif;font-style: normal;font-weight: 400;font-size: 18px;line-height: 25px;">
-					Hi  {{salutation}} {{doctor_name}},</h4>
-					<p>Congratulations! You are now a member of the inticure family.<br><br>
-						We hope you will have an enjoyable and productive experience with us. <br>
-						We expect you will extend the same unforgettable experience to our patients as well.<br><br>
+					Hi {{name|default:"Customer"}}</h4>
+                    
+                    <p>
+                    Your doctor has an emergency and will not be able to attend the consultation originally scheduled for <b>{{date}} at {{time}}</b> with {{doctor_name}}
+                    </p>
+                    <p>
+                    Your Dr. has requested you to reschedule this appointment. You can do it <a href="https://customers.inticure.online/consultations">here</a>
+                    </p>
+                    <br>
+                    <p>
+                    Please know that our world-class medical specialists are always non-judgemental and will treat you with courtesy and respect. Our multi-disciplinary specialists will not just treat your symptoms, but they will identify the root causes of your issue and provide a holistic treatment plan for you. We aim to take you from oh no, to OH YES because you deserve it!
+                    </p>
+		<br>
+		<br>
 
-						You can Login to you account using password as {{otp}}
-						Note - This will be your all time login password. If you forget your password feel free to contact wecare@inticure.com
-
-						A few things to always keep in mind while consulting for our patients</p>
-					<p>
-						● Build a strong relationship with the patient<br>
-						● Always be non-judgemental<br>
-						● Treat all patients with empathy, courtesy, and respect<br>
-						● Gain the patient's trust and confidence<br>
-						● Provide an experience to our patients that they'll never forget.<br>
-					</p>
-					<p>Along the way, if you need any assistance, feel free to reach out to us via<br>
-						drsupport@inticure.com<br>
-						Once again, welcome to the family, and congratulations on starting your new private practice<br>
-						through inticure.
-					</p>
-			{% endif %}
-			{% if is_accepted == 0 %}
-     			<h4  style="font-family: "DM Sans", sans-serif, "Helvetica Neue", Arial, "Noto Sans", sans-serif;font-style: normal;font-weight: 400;font-size: 18px;line-height: 25px;">
-					Hi{{doctor_name}},</h4>
-                          <p> You are receiving this email
-                               because you have registered on our site.</p>
-                          <p>We are regret to inform you that your account has been rejected </p>
-                          <p>Please contact the admin for further clarification about your application</p>
-			{% endif %}
-			<p>With pleasure,<br>Don Thomas<br>Founder and CEO</p>  
-		<br>
-		<br>
-		<br>
-		<p>Please refer our Terms and Conditions <a href="https://inticure.online/faq/">click</a></p>
-		<p>Please refer our Privacy Policy <a href="https://inticure.online/faq/">click</a></p>
-		<p>Please refer our Cancellation and Refund Policy <a href="https://inticure.online/faq/">click</a></p>
-		<br>
+			    <br>
+                <p>Please refer our Terms and Conditions by clicking <a href="https://inticure.online/faq/">here</a></p>
+				<p>Please refer our Privacy Policy by clicking <a href="https://inticure.online/faq/">here</a></p>
+				<p>Please refer our Cancellation and Refund Policy by clicking <a href="https://inticure.online/faq/">here</a></p>
+                
+                <p class="mt-4">With you on your journey,<br>Team Inticure</p>
 		</div>
+		<!-- Footer -->
 		<div class="footer">
 			<div style="padding-left: 120px;color: white;">
 			  <p><b>Your safety and privacy is our number one priority. ALWAYS!</b></p>
@@ -227,9 +217,7 @@
 				<a href="https://www.linkedin.com/company/inticure/?viewAsMember=true"><img src="https://api.inticure.online/media/linkedin.png"/></a>
 			</p>
 			</div>
-			{#<div style="padding-left: 298px;">#}
-			{#}	<p><b><a href="#"><img src="http://api.inticure.com/templates/images/socials/facebook.png" alt=""></a></b></p>#}
-			{#</div>#}
+			
 			<div style="padding-left:144px;color: white;">
 				<p><b>Privacy Policy © 2022 NextBig HealthCare Pvt. Ltd</b></p>
 			</div>

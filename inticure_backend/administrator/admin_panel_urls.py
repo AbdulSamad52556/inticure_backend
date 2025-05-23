@@ -6,7 +6,8 @@ from .views import remove_option_view, sign_in_view, logout_view, create_questio
     report_customer_view,forgot_password_view,password_change_view,application_action_view,sign_in_otp_view,\
     earnings_view,admin_dashboard_view,settings_view,inticure_earnings_view,invoice_status_update_view,\
     dashboard_view,create_user, get_price, get_plan, edit_plan, remove_plan, get_location, duration, add_duration,\
-    contact_form_submission, block_reschedule, can_reschedule
+    contact_form_submission, block_reschedule, can_reschedule, get_notifications_view, notifications_opened_view,\
+    make_accept_view, earnings_view2, filter_view
 
 from .routers import router
 
@@ -34,6 +35,7 @@ urlpatterns = [
     path('application_action',application_action_view,name='application_action'),
     path('sign_in_otp',sign_in_otp_view,name='sign_in_otp'),
     path('doctor_earnings',earnings_view,name='doctor_earnings'),
+    path('doctor_earnings2',earnings_view2,name='doctor_earnings2'),
     path('admin_dash',admin_dashboard_view,name='admin_dash'),
     path('settings_view',settings_view,name='settings_view'),
     path('inticure_earnings',inticure_earnings_view,name='inticure_earnings'),
@@ -49,5 +51,9 @@ urlpatterns = [
     path('api/contact/', contact_form_submission, name='contact_form_submission'),
     path('can_reschedule',can_reschedule,name='can_reschedule'),
     path('block_reschedule',block_reschedule,name='block_reschedule'),
+    path('get-notifications',get_notifications_view,name='get-notifications'),
+    path('notifications-opened',notifications_opened_view,name = 'notifications_opened'),
+    path('make-accept',make_accept_view,name='make_accept'),
+    path('filter',filter_view,name='filter'),
     path('', include(router.urls)),
 ]

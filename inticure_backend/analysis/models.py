@@ -58,13 +58,14 @@ class AppointmentHeader(models.Model):
     meeting_link=models.CharField(max_length=200,null=True)
     senior_meeting_link=models.CharField(max_length=200,null=True)
     customer_message=models.TextField(null=True)
-    loc_id = models.IntegerField(default=0)
-    payment_status = models.BooleanField(default=False)
+    loc_id = models.IntegerField(default=0,null=True)
+    payment_status = models.BooleanField(default=False, null=True)
     payment_gateway = models.CharField(max_length=20, null=True)
-    session_type = models.CharField(default = 'single', max_length = 20)
+    session_type = models.CharField(default = 'single', max_length = 20,null=True)
     can_reschedule = models.BooleanField(default=False)
     refund = models.CharField(max_length=30, default='0')
     total = models.CharField(max_length=20, null=True)
+    cancelled_date = models.DateTimeField(null=True)
 
 """Holds the details  of analysis questions user submitted before taking appointment"""
 
@@ -90,7 +91,7 @@ class Invoices(models.Model):
     bill_for=models.CharField(max_length=25)
     gender=models.CharField(max_length=15,null=True)
     age=models.IntegerField(null=True)
-    mobile_number=models.BigIntegerField(null=True)
+    mobile_number=models.CharField(max_length=20, null=True)
     date_of_birth=models.DateField(null=True)
     address=models.CharField(max_length=50,null=True)
     email=models.CharField(max_length=30,null=True)
@@ -113,7 +114,7 @@ class Invoices(models.Model):
 
 """Verify otp of user"""
 class OtpVerify(models.Model):
-    mobile_number=models.BigIntegerField()
+    mobile_number=models.CharField(max_length=20, null=True)
     otp=models.CharField(max_length=10,null=True)
 class EmailOtpVerify(models.Model):
     email=models.CharField(max_length=100)

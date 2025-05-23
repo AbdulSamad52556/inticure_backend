@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import LanguagesKnown, Locations, Plans,Payouts,Transactions,DiscountCoupons,InticureEarnings
+from .models import LanguagesKnown, Locations, Plans,Payouts,Transactions,DiscountCoupons,InticureEarnings, Notification
+from doctor.models import DoctorSpecializations
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,6 +15,10 @@ class LocationSerializer(serializers.ModelSerializer):
     class Meta:
         model= Locations
         fields="__all__"
+class NotificationSelializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = '__all__'
 class PayoutsSerializer(serializers.ModelSerializer):
     class Meta:
         model= Payouts
@@ -34,3 +39,7 @@ class InticureEarningsSerializer(serializers.ModelSerializer):
     class Meta:
         model=InticureEarnings
         fields="__all__"
+class DoctorSpecializationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DoctorSpecializations
+        fields = '__all__'

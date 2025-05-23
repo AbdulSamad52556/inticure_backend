@@ -14,7 +14,9 @@ from django.core import mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.db.models import F  
+from django.utils.timezone import now
 from django.utils import timezone
+from collections import defaultdict
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
@@ -44,9 +46,9 @@ from .models import AnalysisInfo, AppointmentTransferHistory, DoctorAvailableDat
     RescheduleHistory, PrescriptionsDetail, CommonFileUploader, Timeslots, JrDoctorEngagement,Time,\
     SrDoctorEngagement, DoctorLanguages, FollowUpReminder, AppointmentDiscussion,ConsumptionTime,Medications,\
     DoctorCalenderUpdate,PatientMedicalHistory,DoctorAddedTimeSlots,SeniorDoctorAvailableTimeSLots,\
-    JuniorDoctorSlots, EscalatedAppointment
+    JuniorDoctorSlots, EscalatedAppointment, RescheduleRequest
 from administrator.models import Payouts, Plans, TotalPayouts, Transactions, ReportCustomer,\
-    SpecializationTimeDuration,InticureEarnings, Locations, Duration
+    SpecializationTimeDuration,InticureEarnings, Locations, Duration, Notification
 import json
 from common.views import get_category_name,get_appointment_time
 
@@ -211,9 +213,17 @@ def unblock_doctor(request, doctor_id):
 @api_view(['POST'])
 def is_dr_blocked(request):
     data = request.data
+    print(data)
     try:
-        user = User.objects.get(email = data['email']).id
-        DoctorProfiles.objects.get(user_id = user, is_blocked = False)
+        try:
+            user = User.objects.get(email = data['email']).id
+            DoctorProfiles.objects.get(user_id = user, is_blocked = False)
+        except Exception as e:
+            print(e)
+            try:
+                DoctorProfiles.objects.get(mobile_number = data['email'], is_blocked = False)
+            except:
+                DoctorProfiles.objects.get(mobile_number = data['email'].split(' ')[1], is_blocked = False)
         return Response({
             'response_code': 200,
             'status': 'Ok'})
@@ -235,19 +245,61 @@ def login_from_admin(request):
         return Response({
             'response_code': 400,
             'status': 'not available'})
-    try:
-        subject = f"{doctor_email}'s OTP Code"
-        message = f"OTP for {doctor_email}is : {otp.otp}"
-        email_from = 'wecare@inticure.com'
-        recipient_list = ['nextbighealthcare@inticure.com']
-        mail.send_mail(subject, message, email_from, recipient_list)
-    except Exception as e:
-        print(e)
-        print("Email Sending error")
+    # try:
+    #     subject = f"{doctor_email}'s OTP Code"
+    #     message = f"OTP for {doctor_email}is : {otp.otp}"
+    #     email_from = 'wecare@inticure.com'
+    #     recipient_list = ['nextbighealthcare@inticure.com']
+    #     mail.send_mail(subject, message, email_from, recipient_list)
+    # except Exception as e:
+    #     print(e)
+    #     print("Email Sending error")
+    #     user = User.objects.get(email = request.data['email'])
+    #     Notification.objects.create(user_id = user.id, description = f'OTP has not been send to doctor {get_users_name(user.id)} for login and the OTP is {otp.otp}, because of {str(e)}')
 
     return Response({
         'response_code': 200,
         'status': 'Ok'})
+
+@api_view(['POST'])
+def get_prescription(request):
+
+    user_id = AppointmentHeader.objects.get(appointment_id=request.data['appointment_id']).user_id
+    appointments = AppointmentHeader.objects.filter(user_id=user_id).values_list('appointment_id', flat=True)
+    data = {}
+    analysis_information = AnalysisInfoSerializer(
+        AnalysisInfo.objects.filter(appointment_id__in=appointments),
+        many=True
+    ).data
+
+    observations= ObservationsSerializer(
+            Obeservations.objects.filter(appointment_id__in=appointments).order_by('-uploaded_date'),
+            many=True).data
+    
+    prescript_text=PrescriptionTextSerializer(
+           PrescriptionsDetail.objects.filter(
+               appointment_id__in=appointments),many=True).data
+
+    data['analysis_info'] = analysis_information
+    for analysis in data['analysis_info']:
+        analysis['doctor_name'] = get_users_name(analysis['doctor_id'])
+    data['observations'] = observations
+    for observations in data['observations']:
+        observations['doctor_name'] = get_users_name(observations['doctor_id'])
+    data['prescript_text'] = prescript_text
+    for prescript in data['prescript_text']:
+        prescript['doctor_name'] = get_users_name(prescript['doctor_id'])
+        prescript['medicines'] = MedicationsSerializer(Medications.objects.filter(
+                                    prescription_id=prescript['id']),many=True).data
+        for consumption in prescript['medicines']:
+            consumption['consumption_time']=ConsumptionTime.objects.filter(
+                medication_id=consumption['medication_id']).values_list('consumption_time',flat=True)
+
+    return Response({
+        'data':data,
+        'response_code': 200,
+        'status': 'Ok'})
+
 
 """View to list appointments"""
 @api_view(['POST'])
@@ -283,6 +335,19 @@ def appointment_list_view(request):
             # print(appointment_list,"IDIDIDID")
             filter['appointment_id__in']=appointment_list
             filter['junior_doctor']=request.data['user_id']
+    else:
+        if 'location' in request.data and request.data['location'] != "":
+            location = Locations.objects.get(location=request.data['location']).location_id
+            user_id = CustomerProfile.objects.filter(location=location).values_list('user_id', flat=True)
+            filter['user_id__in'] = user_id
+        if 'specialization' in request.data and request.data['specialization'] != "":
+            doctor_id = DoctorProfiles.objects.filter(specialization=request.data['specialization']).values_list('user_id',flat=True)
+            if request.data['specialization'] == 'no specialization':
+                filter['junior_doctor__in'] = doctor_id
+            else:
+                filter['senior_doctor__in']=doctor_id
+        if 'date' in request.data and request.data['date'] != "":
+            filter['appointment_date'] = request.data['date']
 
     if 'appointment_status' in request.data and request.data['appointment_status']:
             filter['appointment_status__in'] = request.data['appointment_status']
@@ -290,6 +355,8 @@ def appointment_list_view(request):
             filter['category_id'] = request.data['category_id']
     if 'appointment_month' in request.data and request.data['appointment_month'] !='':
             filter['appointment_date__month']=request.data['appointment_month']
+    if 'upcoming' in request.data and request.data['upcoming'] == True:
+        filter['appointment_date__gte'] = datetime.date.today()
 
     queryset1 = custom_filter(AppointmentHeader, filter).order_by('-appointment_id')
 
@@ -312,7 +379,6 @@ def appointment_list_view(request):
         
          try:
            queryset_user=User.objects.get(id=user_id)
-           's'
            customer = CustomerProfile.objects.get(user_id = queryset_user.id)
         #    print(queryset_user)
            user['user_fname']=queryset_user.first_name
@@ -441,7 +507,7 @@ def appointment_list_view(request):
                 
             if app_id.senior_doctor:
                 doctor = DoctorProfiles.objects.get(user_id = app_id.senior_doctor).doctor_profile_id
-                if app_id.session_type == 'single':
+                if app_id.session_type == 'single' or app_id.session_type == 'individual':
                     try:
                         plan = Plans.objects.get(doctor_id = doctor, location_id = location.location_id).price_for_single
                     except Exception as e:
@@ -574,8 +640,11 @@ def escalated_one(request):
         print(request.data)
         appointment = AppointmentHeader.objects.get(appointment_id = request.data['appointment_id'])
         appointments = AppointmentHeaderSerializer(appointment,many=False).data
-        queryset_doctor = DoctorProfiles.objects.get(user_id = appointment.senior_doctor).specialization
-        appointments['specialization'] = queryset_doctor
+        queryset_doctor = DoctorProfiles.objects.get(user_id = appointment.senior_doctor)
+        appointments['specialization'] = queryset_doctor.specialization
+        appointments['doctor_bio'] = queryset_doctor.doctor_bio
+        user = User.objects.get(id = queryset_doctor.user_id)
+        appointments['fullname'] = user.first_name + " " + user.last_name 
         return Response({
             'response_code': 200,
             'status': 'Ok',
@@ -605,6 +674,54 @@ def appointment_completed(request):
             'status': 'Ok',
             'data': data})
 
+@api_view(['POST'])
+def get_junior_doctor(request):
+    data = request.data
+    print(data)
+    doctor_id_time_slots=JuniorDoctorSlots.objects.filter(date=request.data['date'],time_slot=request.data['time_slot'], is_active = 0).values_list('doctor_id',flat=True)
+
+    doctors = DoctorProfiles.objects.filter(gender = data['gender'], doctor_flag = 'junior', user_id__in=doctor_id_time_slots).values_list('user_id', flat =True)
+    
+    user_ids=DoctorLanguages.objects.filter(languages=request.data['language'],doctor_id__in=doctors).values_list('doctor_id',flat=True)
+    if len(user_ids) == 0:
+        user_ids=DoctorLanguages.objects.filter(languages='English',doctor_id__in=doctors).values_list('doctor_id',flat=True)
+
+    if len(user_ids) == 0:
+        doctors = DoctorProfiles.objects.filter(doctor_flag = 'junior', user_id__in=doctor_id_time_slots).values_list('user_id', flat =True)
+        user_ids=DoctorLanguages.objects.filter(languages=request.data['language'],doctor_id__in=doctors).values_list('doctor_id',flat=True)
+        if len(user_ids) == 0:
+            user_ids=DoctorLanguages.objects.filter(languages='English',doctor_id__in=doctors).values_list('doctor_id',flat=True)
+
+    available_junior_doctor = user_ids[0]
+    
+    print(available_junior_doctor)
+    user = User.objects.get(id = available_junior_doctor)
+    doctor = DoctorProfiles.objects.get(user_id=available_junior_doctor)
+    dr_details = {}
+    dr_details['doctor_user_id']=user.id
+    dr_details['fullname'] = user.first_name+' '+user.last_name
+    dr_details['flag'] = 'junior'
+    dr_details['specialization'] = doctor.specialization
+    dr_details['bio'] = doctor.doctor_bio
+    dr_details['gender'] = doctor.gender
+    languages = DoctorLanguages.objects.filter(doctor_id=user.id).values_list('languages', flat=True)
+    language_list = list(languages)
+    dr_details['languages'] = language_list
+    try:
+        location = Locations.objects.get(location = request.data['user_location'])
+    except Exception as e:
+        location = Locations.objects.get(location = 'USA')
+    print(location)
+
+    plan = Plans.objects.get(doc_name = 'junior doctor', location_id = location.location_id)
+   
+    dr_details['currency'] = location.currency
+    dr_details['price'] = plan.price_for_single
+
+    return Response({
+        'response_code': 200,
+        'status': 'Ok',
+        'data': dr_details})
 
 @api_view(['POST'])
 def timeslots(request):
@@ -660,10 +777,14 @@ def timeslots(request):
     print(available_dr)
     user = User.objects.get(id = available_dr.user_id)
     dr_details = {}
+    dr_details['doctor_user_id']=user.id
     dr_details['fullname'] = user.first_name+' '+user.last_name
     dr_details['flag'] = available_dr.doctor_flag
     dr_details['specialization'] = available_dr.specialization
     dr_details['bio'] = available_dr.doctor_bio
+    dr_details['gender'] = available_dr.gender
+    languages = DoctorLanguages.objects.filter(doctor_id=user.id).values_list('languages', flat=True)
+    dr_details['languages'] = list(languages)
     try:
         location = Locations.objects.get(location = country)
     except Exception as e:
@@ -691,16 +812,23 @@ def timeslots(request):
 """View to update appointment status"""
 @api_view(['POST'])
 def appointment_status_update_view(request):
+    print(request.data)
     appointment_id=request.data['appointment_id']
     appointment_status=request.data['appointment_status']
     print('appointtment_id: ',appointment_id,'   appointment_status: ',appointment_status)
     
-    AppointmentHeader.objects.filter(pk=appointment_id).update(
-        appointment_status=appointment_status)
-    
     if appointment_status==3:
+        print('Entered into 3')
+        try:
+            AppointmentHeader.objects.filter(pk=appointment_id).update(
+                appointment_status=appointment_status,cancelled_date=datetime.datetime.now())        
+        
+        except Exception as e:
+            print(e)
+        print('cancelled_date_updated')
         appointment = AppointmentHeader.objects.get(appointment_id = appointment_id)
         customer = CustomerProfile.objects.get(user_id = appointment.user_id)
+        payment_method = appointment.payment_gateway
         user = User.objects.get(id = appointment.user_id)
         try:
             location = Locations.objects.get(location_id = customer.location)
@@ -709,7 +837,7 @@ def appointment_status_update_view(request):
             location = Locations.objects.get(location = 'USA')
         if appointment.senior_doctor:
             doctor = DoctorProfiles.objects.get(user_id = appointment.senior_doctor).doctor_profile_id
-            if appointment.session_type == 'single':
+            if appointment.session_type == 'single' or appointment.session_type == 'individual':
                 try:
                     plan = Plans.objects.get(doctor_id = doctor, location_id = location.location_id).price_for_single
                 except Exception as e:
@@ -753,11 +881,11 @@ def appointment_status_update_view(request):
                                         <td>{user.first_name} {user.last_name}</td>
                                     </tr>
                                     <tr>
-                                        <th>Email</th>
+                                        <th>Patient Email</th>
                                         <td>{user.email}</td>
                                     </tr>
                                     <tr>
-                                        <th>Original Appointment Date</th>
+                                        <th>Appointment Date</th>
                                         <td>{appointment.appointment_date}</td>
                                     </tr>
                                     <tr>
@@ -767,6 +895,10 @@ def appointment_status_update_view(request):
                                     <tr>
                                         <th>Refund Amount</th>
                                         <td><strong>{refund_amt} {location.currency}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <td><strong>{payment_method}</strong></td>
                                     </tr>
                                 </table>
 
@@ -785,6 +917,7 @@ def appointment_status_update_view(request):
                 except Exception as e:
                     print(e)
                     print('Email send error to wecare@inticure.com')
+                    Notification.objects.create(user_id = 0, description = f'Refund Details Email has not been send to admin for the appointment {str(appointment.appointment_id)}, because of {str(e)}')
 
             elif escalated_datetime > time_7_days:
                 refund_amt = f"{plan} {location.currency}"
@@ -809,11 +942,11 @@ def appointment_status_update_view(request):
                                         <td>{user.first_name} {user.last_name}</td>
                                     </tr>
                                     <tr>
-                                        <th>Email</th>
+                                        <th>Patient Email</th>
                                         <td>{user.email}</td>
                                     </tr>
                                     <tr>
-                                        <th>Original Appointment Date</th>
+                                        <th>Appointment Date</th>
                                         <td>{appointment.appointment_date}</td>
                                     </tr>
                                     <tr>
@@ -823,6 +956,10 @@ def appointment_status_update_view(request):
                                     <tr>
                                         <th>Refund Amount</th>
                                         <td><strong>{refund_amt} {location.currency}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <td><strong>{payment_method}</strong></td>
                                     </tr>
                                 </table>
 
@@ -841,17 +978,60 @@ def appointment_status_update_view(request):
                 except Exception as e:
                     print(e)
                     print('Email send error to wecare@inticure.com')
+                    Notification.objects.create(user_id = 0, description = f'Refund Details Email has not been send to admin for the appointment {str(appointment.appointment_id)}, because of {str(e)}')
+
             else:
                 try:
-                    subject = 'order cancelled'
+                    refund_message = f"""
+                        <html>
+                            <body>
+                                <p>Dear Team,</p>
+
+                                <p>We would like to inform you that the following appointment has been Cancelled</p>
+                                
+                                <table>
+                                    <tr>
+                                        <th>Appointment ID</th>
+                                        <td>{appointment.appointment_id}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Patient Name</th>
+                                        <td>{user.first_name} {user.last_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Patient Email</th>
+                                        <td>{user.email}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Appointment Date</th>
+                                        <td>{appointment.appointment_date}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Reffered Date</th>
+                                        <td>{appointment.escalated_date if appointment.escalated_date else 'Not Referred'}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Refund Amount</th>
+                                        <td><strong>0 {location.currency}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <td><strong>{payment_method}</strong></td>
+                                    </tr>
+                                </table>
+
+                                <p>Best regards,<br/>Your Company Team</p>
+                            </body>
+                        </html>
+                        """
+                    to = 'wecare@inticure.com'
                     from_email = "nextbighealthcare@inticure.com"
-                    to = 'abdulsamad52556@gmail.com'
-                    refund_message = "Escalated time is less than or equal to 72 hours from now."
-                    mail.send_mail(subject, refund_message, from_email, [to])
+                    subject = 'Appointment Cancelled'
+                    mail.send_mail(subject, 'This is a plain text version of the message.', from_email, [to], html_message=refund_message)
                 except Exception as e:
                     print(e)
-                    print("Email Sending error")
-                print("Escalated time is less than or equal to 72 hours from now.")
+                    print('Email send error to wecare@inticure.com')
+                    Notification.objects.create(user_id = 0, description = f'Cancelled Email has not been send to admin for the appointment {str(appointment.appointment_id)}, because of {str(e)}')
         else:
             appointment_time = datetime.datetime.strptime(appointment.appointment_time_slot_id, "%I:%M%p").time()
             # appointment_date = datetime.datetime.strptime(appointment.appointment_date, "%Y-%m-%d")
@@ -884,11 +1064,11 @@ def appointment_status_update_view(request):
                                         <td>{user.first_name} {user.last_name}</td>
                                     </tr>
                                     <tr>
-                                        <th>Email</th>
+                                        <th>Patient Email</th>
                                         <td>{user.email}</td>
                                     </tr>
                                     <tr>
-                                        <th>Original Appointment Date</th>
+                                        <th>Appointment Date</th>
                                         <td>{appointment.appointment_date}</td>
                                     </tr>
                                     <tr>
@@ -898,6 +1078,10 @@ def appointment_status_update_view(request):
                                     <tr>
                                         <th>Refund Amount</th>
                                         <td><strong>{refund_amt} {location.currency}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <td><strong>{payment_method}</strong></td>
                                     </tr>
                                 </table>
 
@@ -916,6 +1100,7 @@ def appointment_status_update_view(request):
                 except Exception as e:
                     print(e)
                     print('Email send error to wecare@inticure.com')
+                    Notification.objects.create(user_id = 0, description = f'Refund Details Email has not been send to admin for the appointment {str(appointment.appointment_id)}, because of {str(e)}')
 
             elif escalated_datetime > time_7_days:
                 refund_amt = f"{plan} {location.currency}"
@@ -940,11 +1125,11 @@ def appointment_status_update_view(request):
                                         <td>{user.first_name} {user.last_name}</td>
                                     </tr>
                                     <tr>
-                                        <th>Email</th>
+                                        <th>Patient Email</th>
                                         <td>{user.email}</td>
                                     </tr>
                                     <tr>
-                                        <th>Original Appointment Date</th>
+                                        <th>Appointment Date</th>
                                         <td>{appointment.appointment_date}</td>
                                     </tr>
                                     <tr>
@@ -954,6 +1139,10 @@ def appointment_status_update_view(request):
                                     <tr>
                                         <th>Refund Amount</th>
                                         <td><strong>{refund_amt} {location.currency}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <td><strong>{payment_method}</strong></td>
                                     </tr>
                                 </table>
 
@@ -972,15 +1161,58 @@ def appointment_status_update_view(request):
                 except Exception as e:
                     print(e)
                     print('Email send error to wecare@inticure.com')
+                    Notification.objects.create(user_id = 0, description = f'Refund Details Email has not been send to admin for the appointment {str(appointment.appointment_id)}, because of {str(e)}')
 
             else:
                 try:
                     refund_amt = 0
-                    subject = 'order cancelled'
+                    subject = 'Appointment cancelled'
                     from_email = "nextbighealthcare@inticure.com"
-                    to = 'abdulsamad52556@gmail.com'
-                    refund_message = "Escalated time is less than or equal to 72 hours from now."
-                    mail.send_mail(subject, refund_message, from_email, [to])
+                    to = 'wecare@inticure.com'
+                    refund_message = f"""
+                        <html>
+                            <body>
+                                <p>Dear Team,</p>
+
+                                <p>We would like to inform you that the following appointment has been Cancelled</p>
+                                
+                                <table>
+                                    <tr>
+                                        <th>Appointment ID</th>
+                                        <td>{appointment.appointment_id}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Patient Name</th>
+                                        <td>{user.first_name} {user.last_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Patient Email</th>
+                                        <td>{user.email}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Appointment Date</th>
+                                        <td>{appointment.appointment_date}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Referred Date</th>
+                                        <td>{appointment.escalated_date if appointment.escalated_date else 'Not Referred'}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Refund Amount</th>
+                                        <td><strong>0 {location.currency}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <td><strong>{payment_method}</strong></td>
+                                    </tr>
+                                    
+                                </table>
+
+                                <p>Best regards,<br/>Your Company Team</p>
+                            </body>
+                        </html>
+                        """
+                    mail.send_mail(subject, 'This is a plain text version of the message.', from_email, [to], html_message=refund_message)
                 except Exception as e:
                     print(e)
                     print("Email Sending error")
@@ -988,9 +1220,10 @@ def appointment_status_update_view(request):
         try:
             print('refund_amount', refund_amt)
             create_refund(appointment_id)
-            subject = 'Order Cancelled'
+            subject = 'Appointment Cancelled'
             html_message = render_to_string('order_cancellation.html', {
             'is_doctor':0,
+            'username': get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id),
             'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
             plain_message = strip_tags(html_message)
             from_email = 'wecare@inticure.com'
@@ -1000,17 +1233,74 @@ def appointment_status_update_view(request):
         except Exception as e:
             print(e)
             print("Email Sending error")
+            Notification.objects.create(user_id = AppointmentHeader.objects.get(appointment_id=appointment_id).user_id, description = f'Appointment Cancellation Email has not been send to user {get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
+
+        try:
+            doctor_id = AppointmentHeader.objects.get(appointment_id=appointment_id).senior_doctor if AppointmentHeader.objects.get(appointment_id=appointment_id).senior_doctor else AppointmentHeader.objects.get(appointment_id=appointment_id).junior_doctor
+            print('refund_amount', refund_amt)
+            create_refund(appointment_id)
+            subject = 'Appointment Cancelled'
+            doctor_name = get_users_name(doctor_id)
+            refund_message = f"""
+                <html>
+                    <body>
+                        <p>Dear {doctor_name},</p>
+
+                        <p>We would like to inform you that the following appointment has been Cancelled</p>
+                        
+                        <table>
+                            <tr>
+                                <th>Appointment ID</th>
+                                <td>{appointment.appointment_id}</td>
+                            </tr>
+                            <tr>
+                                <th>Patient Name</th>
+                                <td>{user.first_name} {user.last_name}</td>
+                            </tr>
+                            <tr>
+                                <th>Patient Email</th>
+                                <td>{user.email}</td>
+                            </tr>
+                            <tr>
+                                <th>Appointment Date</th>
+                                <td>{appointment.appointment_date}</td>
+                            </tr>
+                            <tr>
+                                <th>Referred Date</th>
+                                <td>{appointment.escalated_date if appointment.escalated_date else 'Not Referred'}</td>
+                            </tr>
+                            
+                        </table>
+
+                        <p>Feel Free to contact <b>wecare@inticure.com</b> if you have any questions.</p>
+                        <p>Best regards,<br/>Inticure Care</p>
+                    </body>
+                </html>
+                """
+            html_message = render_to_string('order_cancellation.html', {
+            'is_doctor':0,
+            'email':get_user_mail(doctor_id)})
+            plain_message = strip_tags(html_message)
+            from_email = 'wecare@inticure.com'
+            to = get_user_mail(doctor_id)
+            mail.send_mail(subject, 'This is a plain text version of the message.', from_email, [to], [cc], html_message=refund_message)
+        except Exception as e:
+            print(e)
+            print("Email Sending error")
+            Notification.objects.create(user_id = AppointmentHeader.objects.get(appointment_id=appointment_id).user_id, description = f'Appointment Cancellation Email has not been send to doctor {get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
+
+
         try:
               sms_service.send_message(
            "Hi There, Your Appointment #%s has been cancelled Please refer email for more information"
             %(appointment_id),
-                "+91" + str(CustomerProfile.objects.get(user_id=appointment.user_id).mobile_number))
+                str(CustomerProfile.objects.get(user_id=appointment.user_id).mobile_number))
         except Exception as e:
               print(e)
               print("MESSAGE SENT ERROR")
     if appointment_status=="9":
         try:
-            subject = 'Order Marked No Show'
+            subject = 'Appointment Marked No Show'
             html_message = render_to_string('order_no_show.html', {
             'is_doctor':0,
             'email':get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
@@ -1022,11 +1312,13 @@ def appointment_status_update_view(request):
         except Exception as e:
             print(e)
             print("Email Sending error")
+            Notification.objects.create(user_id = AppointmentHeader.objects.get(appointment_id=appointment_id).user_id, description = f'No Show Email has not been send to user {get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
+
         try:
               sms_service.send_message(
            "Hi There, Your Appointment #%s has been marked as no show please reschedule your appointment"
             %(appointment_id),
-                "+91" + str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
+                str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
         except Exception as e:
               print(e)
               print("MESSAGE SENT ERROR")
@@ -1039,7 +1331,7 @@ def appointment_status_update_view(request):
     if appointment_status=="6":
         print("here")
         try:
-            subject = 'Order Completed'
+            subject = 'Appointment Completed'
             encrypted_id=encryption_key.encrypt(str(appointment_id).encode())
             html_message = render_to_string('order_complete.html', {"appointment_id":encrypted_id.decode(),
             'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
@@ -1052,13 +1344,15 @@ def appointment_status_update_view(request):
         except Exception as e:
             print(e)
             print("Email Sending error")
+            Notification.objects.create(user_id = AppointmentHeader.objects.get(appointment_id=appointment_id).user_id, description = f'Appointment Completed Email has not been send to user {get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
+
         doctor=request.data['doctor_id']
         specialization=DoctorProfiles.objects.get(user_id=doctor).specialization
         try:
               sms_service.send_message(
             "Hi There, Your Appointment #%s has been closed! Please refer mail for more details"
             %(appointment_id),
-                "+91" + str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
+                str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
         except Exception as e:
               print(e)
               print("MESSAGE SENT ERROR")
@@ -1429,6 +1723,8 @@ def prescriptions_text_view(request):
                 except Exception as e:
                     print(e)
                     print("Email Sending error")
+                    Notification.objects.create(user_id = AppointmentHeader.objects.get(appointment_id=appointment_id).user_id, description = f'Appointment Prescription Email has not been send to user {get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
+
             #AppointmentHeader.objects.filter(appointment_id=request.data['appointment_id']).update(appointment_status=request.data['appointment_status'])
             return Response({
             'response_code': 200,
@@ -1782,26 +2078,22 @@ def escalate_appointment_view(request):
         start_time = request.data['time_slot']
 
     appoint = AppointmentHeader.objects.get(appointment_id=appointment_id)
-    JuniorDoctorSlots.objects.filter(doctor_id = appoint.junior_doctor,date = appoint.appointment_date, time_slot = appoint.appointment_time_slot_id).update(is_active = 0)
 
-    user_location = CustomerProfile.objects.get(user_id = request.data['user_id']).residence_location
+    user_location = CustomerProfile.objects.get(user_id = request.data['user_id']).location
     try:
-        if session_type == 'couple':
-            plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_couple
-        else:
-            plan = Plans.objects.get(doctor_id = doctor_id, location_name = user_location).price_for_single
+        location = Locations.objects.get(location_id = user_location)
     except Exception as e:
-        print(e)
-        if session_type == 'couple':
-            plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_couple
-        else:
-            plan = Plans.objects.get(doctor_id = doctor_id, location_name = 'USA').price_for_single
-        
-    try:
-        currency = Locations.objects.get(location = user_location).currency
-    except Exception as e:
-        currency = Locations.objects.get(location = 'USA').currency
-    total = str(plan) + ' ' + currency 
+        location = Locations.objects.get(location = 'USA')
+    print('doctor_name: ',get_users_name(doctor_id))
+    print(location.location_id, location.location)
+    doc_id = DoctorProfiles.objects.get(user_id = doctor_id).doctor_profile_id
+    if session_type == 'couple':
+        plan = Plans.objects.get(doctor_id = doc_id, location_id = location.location_id).price_for_couple
+    else:
+        plan = Plans.objects.get(doctor_id = doc_id, location_id = location.location_id).price_for_single
+
+    total = str(plan) + ' ' + location.currency 
+    JuniorDoctorSlots.objects.filter(doctor_id = appoint.junior_doctor,date = appoint.appointment_date, time_slot = appoint.appointment_time_slot_id).update(is_active = 0)
     AppointmentHeader.objects.filter(appointment_id=appointment_id).update(
         appointment_status=appointment_status,
         escalated_time_slot=start_time,
@@ -1809,7 +2101,7 @@ def escalate_appointment_view(request):
     
     SeniorDoctorAvailableTimeSLots.objects.filter(doctor_id = doctor_id, date = appointment_date, time_slot = start_time).update(is_active = 1)
     try:
-        subject = 'Payment for consultation'
+        subject = 'Payment for your Referred consultation'
         html_message = render_to_string('payment_mail.html', {'appointment_id': appointment_id,
             "doctor_name":get_users_name(doctor_id),"name":get_users_name(request.data['user_id']),
             "specialization":get_doctor_specialization(doctor_id),'date':appointment_date,
@@ -1834,6 +2126,18 @@ def escalate_appointment_view(request):
     except Exception as e:
         print(e)
         print("Email Sending error")
+        user_id = request.data['user_id']
+        user_name = get_users_name(user_id)
+        appointment_id = str(appointment_id)
+
+        Notification.objects.create(
+            user_id=user_id,
+            description=(
+                f"Appointment Confirmation Email has not been sent to user {user_name} "
+                f"for the appointment {appointment_id}, because of {str(e)}"
+            )
+        )
+
     return Response({
         'response_code': 200,
         'status': 'Ok',
@@ -1841,6 +2145,96 @@ def escalate_appointment_view(request):
         "doctor":get_users_name(doctor_id)
         })
 
+@api_view(['POST'])
+def escalate_appointment_views(request):
+    print('1148 ', request.data)
+    doctor_id=assign_senior_doctor(request)
+
+    if doctor_id == 0:
+        return Response({
+            'response_code': 404,
+            'status': 'Failed'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    appointment_status=request.data['appointment_status']
+    
+    appointment_id=request.data['appointment_id'] or ''
+    appointment_date=request.data['appointment_date']
+    time_slot=request.data['time_slot']
+    specialization = request.data['specialization']
+    session_type = request.data['session_type']
+    if '-' in request.data['time_slot']:
+        start_time = request.data['time_slot'].split(' - ')[0]
+    else:
+        start_time = request.data['time_slot']
+
+    appoint = AppointmentHeader.objects.get(appointment_id=appointment_id)
+
+    user_location = CustomerProfile.objects.get(user_id = request.data['user_id']).location
+    try:
+        location = Locations.objects.get(location_id = user_location)
+    except Exception as e:
+        location = Locations.objects.get(location = 'USA')
+    print('doctor_name: ',get_users_name(doctor_id))
+    print(location.location_id, location.location)
+    doc_id = DoctorProfiles.objects.get(user_id = doctor_id).doctor_profile_id
+    if session_type == 'couple':
+        plan = Plans.objects.get(doctor_id = doc_id, location_id = location.location_id).price_for_couple
+    else:
+        plan = Plans.objects.get(doctor_id = doc_id, location_id = location.location_id).price_for_single
+
+    total = str(plan) + ' ' + location.currency 
+    JuniorDoctorSlots.objects.filter(doctor_id = appoint.junior_doctor,date = appoint.appointment_date, time_slot = appoint.appointment_time_slot_id).update(is_active = 0)
+    AppointmentHeader.objects.filter(appointment_id=appointment_id).update(
+        appointment_status=appointment_status,
+        escalated_time_slot=start_time,
+        escalated_date=appointment_date,senior_doctor=doctor_id, session_type = session_type, payment_status = False, total = total)
+    
+    SeniorDoctorAvailableTimeSLots.objects.filter(doctor_id = doctor_id, date = appointment_date, time_slot = start_time).update(is_active = 1)
+    try:
+        subject = 'Payment for your Referred consultation'
+        html_message = render_to_string('payment_mail.html', {'appointment_id': appointment_id,
+            "doctor_name":get_users_name(doctor_id),"name":get_users_name(request.data['user_id']),
+            "specialization":get_doctor_specialization(doctor_id),'date':appointment_date,
+            "time":time_slot})
+        
+        user_mail_id=get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
+        # try:
+        #     sms_service.send_message(
+        #     "Hi There, Your Appointment #%s has been escalated on %s,%s Please refer mail for more details"
+        #     %(appointment_id,appointment_date,time_slot),
+        #         "+91" + str(CustomerProfile.objects.get(user_id=AppointmentHeader.objects.get(
+        #             appointment_id=appointment_id).user_id).mobile_number))
+        # except Exception as e:
+        #     print(e)
+        #     print("MESSAGE SENT ERROR")
+
+        plain_message = strip_tags(html_message)
+        from_email = 'Inticure <hello@inticure.com>'
+        to = user_mail_id
+        cc = 'nextbighealthcare@inticure.com'
+        mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+    except Exception as e:
+        print(e)
+        print("Email Sending error")
+        user_id = request.data['user_id']
+        user_name = get_users_name(user_id)
+        appointment_id = str(appointment_id)
+
+        Notification.objects.create(
+            user_id=user_id,
+            description=(
+                f"Appointment Confirmation Email has not been sent to user {user_name} "
+                f"for the appointment {appointment_id}, because of {str(e)}"
+            )
+        )
+
+    return Response({
+        'response_code': 200,
+        'status': 'Ok',
+        'message': "Order Escalated",
+        "doctor":get_users_name(doctor_id)
+        })
 # @api_view(['POST'])
 # def escalate_appointment_list_view(request):
 #     try:
@@ -1990,6 +2384,7 @@ def order_escalate_view(request):
     except Exception as e:
         print(e)
         print("Email Sending error")
+        Notification.objects.create(user_id = AppointmentHeader.objects.get(appointment_id=appointment_id).user_id, description = f'Appointment Confirmation Email has not been send to user {get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
 
     try:
         subject = 'Appointment confirmed'
@@ -2004,6 +2399,7 @@ def order_escalate_view(request):
     except Exception as e:
         print(e)
         print("Email Sending error")
+        Notification.objects.create(user_id = doctor_id, description = f'Appointment Confirmation Email has not been send to doctor {get_users_name(doctor_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
 
     return Response({
         'response_code': 200,
@@ -2126,7 +2522,7 @@ def senior_doctor_transfer_view(request):
     #           print(e)
     #           print("MESSAGE SENT ERROR")
     try:
-        subject = 'Order Transfer Update'
+        subject = 'Appointment Transfer Update'
         html_message = render_to_string('order_transfer.html', {'appointment_id': appointment_id,
         'doctor':get_users_name(new_doctor_id),"doctor_flag":0,
         'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id),
@@ -2139,6 +2535,7 @@ def senior_doctor_transfer_view(request):
     except Exception as e:
         print(e)
         print("Email Sending error")
+        Notification.objects.create(user_id = AppointmentHeader.objects.get(appointment_id=appointment_id).user_id, description = f'Appointment Transfer update Email has not been send to user {get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
 
     try:
         subject = 'Appointment Confirmed'
@@ -2151,6 +2548,8 @@ def senior_doctor_transfer_view(request):
     except Exception as e:
         print(e)
         print("Email Sending error")
+        Notification.objects.create(user_id = new_doctor_id, description = f'Appointment Confirmation Email has not been send to doctor {get_users_name(new_doctor_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
+
 
     return Response({
         'response_code': 200,
@@ -2193,18 +2592,39 @@ def dashboard_view(request):
     escalated_count=0
     dash_data={}
     if doctor_flag==2:
-        appointment_count=AppointmentHeader.objects.filter(appointment_status__in=[0,10,1],user_id = request.data['doctor_id'], payment_status=1).count()
+        appointment_count=AppointmentHeader.objects.filter(appointment_status__in=[0,10,1,4],junior_doctor = request.data['doctor_id'], payment_status=1).count()
         followup_count=AppointmentHeader.objects.filter(appointment_status=8,junior_doctor=doctor_id).count()
-        completed_count=AppointmentHeader.objects.filter(appointment_status__in=[6,9],junior_doctor=doctor_id).count()
+        completed_count=AppointmentHeader.objects.filter(appointment_status__in=[6,9],junior_doctor=doctor_id, senior_doctor = None).count()
         dash_data={
-        "appointment_count":appointment_count,
+        "appointment_count":appointment_count,  
         "followup_count":followup_count,
         "completed_count":completed_count}
 
     if doctor_flag==1:
+        current_time = datetime.datetime.now().strftime("%I:%M%p")
         followup_count=AppointmentHeader.objects.filter(appointment_status=8,senior_doctor=doctor_id).count()
         completed_count=AppointmentHeader.objects.filter(appointment_status__in=[6,9],senior_doctor=doctor_id).count()
-        escalated_count=AppointmentHeader.objects.filter(appointment_status__in=[1,2,11,12] ,senior_doctor=doctor_id,payment_status=True).count()
+        current_date = datetime.date.today()
+        current_time = datetime.datetime.now().strftime("%I:%M%p")
+        escalated_count = AppointmentHeader.objects.filter(
+            appointment_status__in=[1, 2, 11, 12, 4],
+            senior_doctor=doctor_id,
+        ).filter(
+            Q(
+                escalated_date__isnull=False,  # If escalated date exists
+                escalated_date__gte=current_date,  # Escalated date is today or later
+            ) & ~Q(
+                escalated_date=current_date,  # If escalated date is today,
+                escalated_time_slot__lt=current_time  # exclude if time is earlier than current_time
+            )
+            | Q(
+                escalated_date__isnull=True,  # If no escalated date exists
+                appointment_date__gte=current_date,  # Fallback to appointment date
+            ) & ~Q(
+                appointment_date=current_date,  # If appointment date is today,
+                appointment_time_slot_id__lt=current_time  # exclude if time is earlier than current_time
+            )
+        ).count()
         dash_data={
         "appointment_count":escalated_count,
         "followup_count":followup_count,
@@ -2231,6 +2651,13 @@ def doctor_profile_view(request):
         for i in location:
             locations[i.location_id]=i.currency
         doctor_profile['language_known'] = DoctorLanguages.objects.filter(doctor_id=doctor_id).values_list('languages',flat=True)
+        today = datetime.date.today()
+        doctor_profile['reschedule_count'] = RescheduleRequest.objects.filter(
+            doctor_id=doctor_id,
+            date__year=today.year,
+            date__month=today.month
+        ).count()
+
         return Response({
         'response_code': 200,
         'status': 'Ok',
@@ -2353,7 +2780,7 @@ def junior_doctor_transfer_view(request):
                                          end_time)
        AppointmentHeader.objects.filter(appointment_id=appointment_id).update(meeting_link=meet_link)
        try:
-        subject = 'Order Transfer Update'
+        subject = 'Appointment Transfer Update'
         html_message = render_to_string('order_transfer.html', {'appointment_id': appointment_id,
         'doctor':get_users_name(random_id),
         'email':get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)})
@@ -2363,9 +2790,10 @@ def junior_doctor_transfer_view(request):
         to =  get_user_mail(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)
         mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
        except Exception as e:
-           print(e)
-           print("Email Sending error")
-    
+        print(e)
+        print("Email Sending error")
+        Notification.objects.create(user_id = AppointmentHeader.objects.get(appointment_id=appointment_id).user_id, description = f'Appointment Transfer Update Email has not been send to user {get_users_name(AppointmentHeader.objects.get(appointment_id=appointment_id).user_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
+
        try:
         subject = 'Appointment Confirmed'
         html_message = render_to_string('order_confirmation_doctor.html', {'date': appointment_date,"doctor_flag":1,
@@ -2376,8 +2804,9 @@ def junior_doctor_transfer_view(request):
         to =  get_user_mail(random_id)
         mail.send_mail(subject, plain_message, from_email, [to], [cc], html_message=html_message)
        except Exception as e:
-           print(e)
-           print("Email Sending error")
+        print(e)
+        print("Email Sending error")
+        Notification.objects.create(user_id = random_id, description = f'Appointment Confirmation Email has not been send to doctor {get_users_name(random_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
 
        return Response({
         'response_code': 200,
@@ -2413,6 +2842,18 @@ def create_followup_reminder_view(request):
         except Exception as e:
             print(e)
             print("Email Sending error")
+            appointment_id = request.data['appointment_id']
+            appointment = AppointmentHeader.objects.get(appointment_id=appointment_id)
+            user_id = appointment.user_id
+            user_name = get_users_name(user_id)
+
+            try:
+                Notification.objects.create(
+                    user_id=user_id,
+                    description=f'Follow Up Booking Reminder Email has not been sent to user {user_name} for the appointment {appointment_id}, because of {str(e)}'
+                )
+            except Exception as e:
+                print(f"Error creating notification: {str(e)}")
 
         return Response({
             'response_code': 200,
@@ -2435,7 +2876,6 @@ def followup_reminder_list_view(request):
         'data': reminder_serilazed_data
     })
 
-
 @api_view(['POST'])
 def create_discussion_view(request):
     discussion_serializer = AppointmentDiscissionSerializer(data=request.data)
@@ -2457,6 +2897,7 @@ def create_discussion_view(request):
              except Exception as e:
                 print(e)
                 print("Email Sending error")
+
         if request.data['is_reply']==1:
              try:
                 subject = 'You received a response!'
@@ -2548,34 +2989,34 @@ def calender_view(request):
     print(request.data)
     objects_filter=DoctorAvailableDates.objects.filter(doctor_id=request.data['doctor_id'])
     working_dates_serializer=WorkingDateSerializer(objects_filter,many=True).data
-    print(working_dates_serializer)
     for working_hour in working_dates_serializer:
         try:
            calender_date=DoctorCalenderUpdate.objects.get(doctor_id=request.data['doctor_id'],
             date=working_hour['date'])
-           print(calender_date)
-           print("exe")
+        #    print(calender_date)
+        #    print("exe")
         except :
            calender_date=None
         if calender_date:
             
             objects_filter2=DoctorCalenderUpdate.objects.filter(doctor_id=request.data['doctor_id'],
                 date=working_hour['date'])
-            print(objects_filter2)
+            # print(objects_filter2)
             timeslot_added=DoctorAddedTimeSlots.objects.filter(doctor_id=request.data['doctor_id'],
                         date=working_hour['date']).values_list('slot',flat=True)
-            print(timeslot_added)
+            # print(timeslot_added)
         else:
            objects_filter2=DoctorAvailableTimeslots.objects.filter(doctor_id=working_hour['doctor_id']
            ,day=working_hour['day'])
            timeslot_added=[]
-           print(objects_filter2)
+        #    print(objects_filter2)
         working_time_slots_serializer=WorkingHourSerializer(objects_filter2,many=True).data
-        print(working_time_slots_serializer)
+        # print(working_time_slots_serializer)
         for time_slot in working_time_slots_serializer:
           timeslots=TimeSlotSerializer(Timeslots.objects.filter(
            id__in=timeslot_added),many=True).data
         working_hour['time_slots']=timeslots
+    # print(working_dates_serializer)
     return Response({
        'response_code': 200,
         'status': 'Ok',
@@ -2596,14 +3037,14 @@ def timeslot_list_view(request):
             duration = Duration.objects.get(doctor_id = doctor).duration
             timeslots=TimeSlotSerializer(Timeslots.objects.filter(duration = duration),many=True).data
         else:
-            user = User.objects.get(first_name = 'junior',last_name = 'doctor').id
+            user = User.objects.get(first_name = 'Junior',last_name = 'doctor').id
             doctor = DoctorProfiles.objects.get(user_id = user).doctor_profile_id
             duration = Duration.objects.get(doctor_id = doctor).duration
             timeslots=TimeSlotSerializer(Timeslots.objects.filter(duration = duration),many=True).data
         print(timeslots)
     except Exception as e:
         print(e)
-        timeslots = None
+        timeslots = []
     return Response({
           'response_code': 200,
           'status': 'Ok',
@@ -2656,6 +3097,8 @@ def specialization_timeslot_view(request):
     preferred = True
     calculated_list=[]
     duration=60
+    gender_preferred = True
+    language_preferred = True
     if 'this_doctor' in request.data:
         this_doctor = request.data['this_doctor']
     if 'doctor' in request.data:
@@ -2706,113 +3149,160 @@ def specialization_timeslot_view(request):
                 location = Locations.objects.get(location = request.data['location']).location_id
         filter['location'] = location
     if  "appointment_id" not in request.data or request.data['appointment_id'] == "":
-        print("appointment id is null")
-        if 'language_pref' in request.data and request.data['language_pref'] != "":
-            if 'this_doctor' in request.data:
-                user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
-            else:
-                user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
-        else:
-            if 'this_doctor' in request.data:
-                user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
-            else:
-                user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
-            preferred = False
-
-        print('2140 ',user_ids)
-        filter['user_id__in']=user_ids
-        print(filter)
         if 'this_doctor' in request.data:
-            doctor_id = custom_filter(DoctorProfiles, filter).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+            initial_doctors = DoctorProfiles.objects.filter(specialization = request.data['specialization'],gender=request.data['gender'], doctor_flag = request.data['doctor_flag']).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
         else:
-            doctor_id = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
-        if len(doctor_id) == 0:
-            del filter['location']
+            initial_doctors = DoctorProfiles.objects.filter(specialization = request.data['specialization'],gender=request.data['gender'], doctor_flag = request.data['doctor_flag']).values_list('user_id',flat=True)
+        if len(initial_doctors) == 0:
+            initial_doctors = DoctorProfiles.objects.filter(specialization = request.data['specialization'], doctor_flag = request.data['doctor_flag']).values_list('user_id',flat=True)
+            gender_preferred = False
+        
+        user_ids = DoctorLanguages.objects.filter(languages = request.data['language_pref'], doctor_id__in=initial_doctors).values_list('doctor_id',flat=True)
+        if len(user_ids) == 0:
+            user_ids = initial_doctors
+            language_preferred = False
+        
+        objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=user_ids,
+            date__gte=datetime.datetime.now().date() + timedelta(days=1))
+        
+        if len(objects_filter) == 0:
             if 'this_doctor' in request.data:
-                doctor_id = custom_filter(DoctorProfiles, filter).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+                initial_doctors = DoctorProfiles.objects.filter(specialization = request.data['specialization'],gender=request.data['gender'], doctor_flag = request.data['doctor_flag']).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
             else:
-                doctor_id = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+                initial_doctors = DoctorProfiles.objects.filter(specialization = request.data['specialization'],gender=request.data['gender'], doctor_flag = request.data['doctor_flag']).values_list('user_id',flat=True)
+            if len(initial_doctors) == 0:
+                initial_doctors = DoctorProfiles.objects.filter(specialization = request.data['specialization'], doctor_flag = request.data['doctor_flag']).values_list('user_id',flat=True)
+                gender_preferred = False
+            
+            user_ids = initial_doctors
+            language_preferred = False
+            
+            objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=user_ids,
+                date__gte=datetime.datetime.now().date() + timedelta(days=1))
 
-        print("here",doctor_id)
-        if len(doctor_id) == 0:
-            filter2 = {}
-            if 'this_doctor' in request.data:
-                user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
-            else:
-                user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
-            preferred = False
-            filter2['user_id__in']=user_ids
-            print(user_ids)
-            if 'gender' in request.data and request.data['gender'] != "":
-                if request.data['gender'] == 'female' or request.data['gender'] == 'male':
-                    filter2['gender']=request.data['gender']
-
-            if "doctor_flag" in request.data and request.data['doctor_flag'] != "":
-                    filter2['doctor_flag']=request.data['doctor_flag']
-
-            if "specialization" in request.data and request.data['specialization'] != "":
-                    filter2['specialization']=request.data['specialization']
-                    # try:
-                    #     duration=DoctorSpecializations.objects.get(specialization=specialization).time_duration
-                    # except:
-                    #     duration=60
-            if "location" in request.data and request.data['location'] != "" :
-                try:
-                    try:
-                        location = Locations.objects.get(location = request.data['location']).location_id
-                    except Exception as e:
-                        print(e)
-                        location = Locations.objects.get(location = 'USA').location_id
-                except:
-                    try:
-                        location = int(request.data['location'])
-                    except Exception as e:
-                        location = Locations.objects.get(location = request.data['location']).location_id
-                filter2['location'] = location
-            if  "appointment_id" not in request.data or request.data['appointment_id'] == "":
-                print("appointment id is null")
-                if 'language_pref' in request.data and request.data['language_pref'] != "":
-                    if 'this_doctor' in request.data:
-                        user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
-                    else:
-                        user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
-                else:
-                    if 'this_doctor' in request.data:
-                        user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
-                    else:
-                        user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
-
-                    preferred = False
-                print('2173 ',user_ids)
-                filter2['user_id__in']=user_ids
-                print(filter2)
+            if len(objects_filter) == 0:
                 if 'this_doctor' in request.data:
-                    doctor_id = custom_filter(DoctorProfiles, filter2).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+                    initial_doctors = DoctorProfiles.objects.filter(specialization = request.data['specialization'], doctor_flag = request.data['doctor_flag']).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
                 else:
-                    doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
-                print("here2",doctor_id)
-                if len(doctor_id) == 0:
-                    del filter2['location']
-                    if 'this_doctor' in request.data:
-                        doctor_id = custom_filter(DoctorProfiles, filter2).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
-                    else:
-                        doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
-                    print("here22",doctor_id)
-                    if len(doctor_id) == 0:
-                        if 'this_doctor' in request.data:
-                            user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
-                        else:
-                            user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
-                        preferred = False
-                        filter2['user_id__in']=user_ids
-                        if 'this_doctor' in request.data:
-                            doctor_id = custom_filter(DoctorProfiles, filter2).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
-                        else:
-                            doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
-                print("here23",doctor_id)
-            no_time_slots = True
-        objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=doctor_id,
-                        date__gte=datetime.datetime.now().date() + timedelta(days=1))
+                    initial_doctors = DoctorProfiles.objects.filter(specialization = request.data['specialization'], doctor_flag = request.data['doctor_flag']).values_list('user_id',flat=True)
+                
+                gender_preferred = False
+                user_ids = initial_doctors
+                language_preferred = False
+                
+                objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=user_ids,
+                    date__gte=datetime.datetime.now().date() + timedelta(days=1))
+                
+                if len(objects_filter) == 0:
+                    no_time_slots = True
+
+        # print("appointment id is null")
+        # if 'language_pref' in request.data and request.data['language_pref'] != "":
+        #     if 'this_doctor' in request.data:
+        #         user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+        #     else:
+        #         user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
+        # else:
+        #     if 'this_doctor' in request.data:
+        #         user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+        #     else:
+        #         user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
+        #     preferred = False
+
+        # print('2140 ',user_ids)
+        # filter['user_id__in']=user_ids
+        # print(filter)
+        # if 'this_doctor' in request.data:
+        #     doctor_id = custom_filter(DoctorProfiles, filter).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+        # else:
+        #     doctor_id = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+        # if len(doctor_id) == 0:
+        #     del filter['location']
+        #     if 'this_doctor' in request.data:
+        #         doctor_id = custom_filter(DoctorProfiles, filter).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+        #     else:
+        #         doctor_id = custom_filter(DoctorProfiles, filter).values_list('user_id',flat=True)
+
+        # print("here",doctor_id)
+        # if len(doctor_id) == 0:
+        #     filter2 = {}
+        #     if 'this_doctor' in request.data:
+        #         user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+        #     else:
+        #         user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
+        #     preferred = False
+        #     filter2['user_id__in']=user_ids
+        #     print(user_ids)
+        #     if 'gender' in request.data and request.data['gender'] != "":
+        #         if request.data['gender'] == 'female' or request.data['gender'] == 'male':
+        #             filter2['gender']=request.data['gender']
+
+        #     if "doctor_flag" in request.data and request.data['doctor_flag'] != "":
+        #             filter2['doctor_flag']=request.data['doctor_flag']
+
+        #     if "specialization" in request.data and request.data['specialization'] != "":
+        #             filter2['specialization']=request.data['specialization']
+        #             # try:
+        #             #     duration=DoctorSpecializations.objects.get(specialization=specialization).time_duration
+        #             # except:
+        #             #     duration=60
+        #     if "location" in request.data and request.data['location'] != "" :
+        #         try:
+        #             try:
+        #                 location = Locations.objects.get(location = request.data['location']).location_id
+        #             except Exception as e:
+        #                 print(e)
+        #                 location = Locations.objects.get(location = 'USA').location_id
+        #         except:
+        #             try:
+        #                 location = int(request.data['location'])
+        #             except Exception as e:
+        #                 location = Locations.objects.get(location = request.data['location']).location_id
+        #         filter2['location'] = location
+        #     if  "appointment_id" not in request.data or request.data['appointment_id'] == "":
+        #         print("appointment id is null")
+        #         if 'language_pref' in request.data and request.data['language_pref'] != "":
+        #             if 'this_doctor' in request.data:
+        #                 user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+        #             else:
+        #                 user_ids=DoctorLanguages.objects.filter(languages=request.data['language_pref']).values_list('doctor_id',flat=True)
+        #         else:
+        #             if 'this_doctor' in request.data:
+        #                 user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+        #             else:
+        #                 user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
+
+        #             preferred = False
+        #         print('2173 ',user_ids)
+        #         filter2['user_id__in']=user_ids
+        #         print(filter2)
+        #         if 'this_doctor' in request.data:
+        #             doctor_id = custom_filter(DoctorProfiles, filter2).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+        #         else:
+        #             doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
+        #         print("here2",doctor_id)
+        #         if len(doctor_id) == 0:
+        #             del filter2['location']
+        #             if 'this_doctor' in request.data:
+        #                 doctor_id = custom_filter(DoctorProfiles, filter2).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+        #             else:
+        #                 doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
+        #             print("here22",doctor_id)
+        #             if len(doctor_id) == 0:
+        #                 if 'this_doctor' in request.data:
+        #                     user_ids=DoctorLanguages.objects.all().exclude(doctor_id__in=[request.data['this_doctor']]).values_list('doctor_id',flat=True)
+        #                 else:
+        #                     user_ids=DoctorLanguages.objects.all().values_list('doctor_id',flat=True)
+        #                 preferred = False
+        #                 filter2['user_id__in']=user_ids
+        #                 if 'this_doctor' in request.data:
+        #                     doctor_id = custom_filter(DoctorProfiles, filter2).exclude(user_id__in=[request.data['this_doctor']]).values_list('user_id',flat=True)
+        #                 else:
+        #                     doctor_id = custom_filter(DoctorProfiles, filter2).values_list('user_id',flat=True)
+        #         print("here23",doctor_id)
+        #     no_time_slots = True
+        # objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=doctor_id,
+        #                 date__gte=datetime.datetime.now().date() + timedelta(days=1))
                         
     else:
         if "is_transfer" in request.data and request.data['is_transfer'] == 1:
@@ -2832,13 +3322,23 @@ def specialization_timeslot_view(request):
                     del filter['location']
                 try:
                     # print("Appoint-id")
-                    doctor_qset=AppointmentHeader.objects.get(appointment_id=request.data['appointment_id'])
-                    doctor_id=doctor_qset.senior_doctor
+                    if 'doctor_id' in request.data and request.data['doctor_id'] != "":
+                        doctor_id = request.data['doctor_id']
+                    else:
+                        doctor_qset=AppointmentHeader.objects.get(appointment_id=request.data['appointment_id'])
+                        doctor_id=doctor_qset.senior_doctor
+                        print('doctor_id',doctor_id)
+                        if doctor_id == None:
+                            doctor_id = doctor_qset.junior_doctor
+                            filter['doctor_flag'] = 'junior'
+                    print('doctor_id',doctor_id)
                     specialization=DoctorProfiles.objects.get(user_id=doctor_id).specialization
                     # duration=DoctorSpecializations.objects.get(specialization=specialization).time_duration
                     filter['specialization']=specialization
                     if 'regular' in request.data and request.data['regular'] == 'regular':
-                        user_ids = [doctor_qset.senior_doctor]
+                        user_ids = [doctor_id]
+                    elif ('doctor_id' in request.data and request.data['doctor_id'] != "") or doctor_id:
+                        user_ids=[doctor_id]
                     else:
                         try:
                             user_ids=DoctorLanguages.objects.filter(languages=doctor_qset.language_pref, doctor_id=request.data['user_id']).values_list('doctor_id',flat=True)
@@ -2878,7 +3378,7 @@ def specialization_timeslot_view(request):
             print(doctor_ids)
             objects_filter=DoctorAvailableDates.objects.filter(doctor_id__in=doctor_ids,
                         date__gte=datetime.datetime.now().date() + timedelta(days=1))
-            print(objects_filter)
+    print(objects_filter)
     working_dates_serializer=WorkingDateSerializer(objects_filter,many=True).data
     slot_list=[]
     print('asdgsdafg$#########################')
@@ -2967,7 +3467,9 @@ def specialization_timeslot_view(request):
         'slots':sorted_timeslot,
         "Message":message,
         "no_timeslots":no_time_slots,
-        "preferred":preferred
+        "preferred":preferred,
+        "gender_preferred":gender_preferred,
+        "language_preferred":language_preferred,
     })
 
 @api_view(['POST'])
@@ -3799,6 +4301,10 @@ def starting_time_slots(start_time, end_time, duration):
     end = datetime.datetime.strptime(str(end_time), "%H:%M:%S")
     delta = timedelta(minutes=duration)
     slots = []
+    print(start,end,delta)
+    if end <= start:
+        end += timedelta(days=1)
+    print(start,end,delta)
     while start + delta <= end:
         slot = start.strftime("%I:%M%p") 
         slots.append(slot)
@@ -4297,6 +4803,42 @@ def appointment_patient_history(request):
         'message':"Patient History Saved",
     })
 
+@api_view(['POST'])
+def reschedule_request(request):
+    try:
+        print(request.data)
+        appointment_id=request.data['appointment_id']
+        appointment = AppointmentHeader.objects.get(pk=appointment_id)
+        appointment.appointment_status = 4
+        appointment.save()
+        user_id = appointment.user_id
+        email = get_users_email(user_id)
+        user_name = get_users_name(user_id)
+        subject = 'Sorry! Your Doctor has an emergency and requests a reschedule'
+        html_message = render_to_string('reschedule_request.html', {'name': user_name,
+                                    'date': appointment.appointment_date, 'time': appointment.appointment_time_slot_id,
+                                    'doctor_name': get_users_name(appointment.senior_doctor if appointment.senior_doctor else appointment.junior_doctor)})
+        plain_message = strip_tags(html_message)
+        from_email = 'wecare@inticure.com'
+        to = email
+        cc = 'nextbighealthcare@inticure.com'
+        mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+
+        RescheduleRequest.objects.create(doctor_id=appointment.senior_doctor if appointment.senior_doctor else appointment.junior_doctor)
+
+        return Response({
+            'response_code': 200,
+            'status': 'Ok',
+            'message':"Request Submitted",
+        })
+    except Exception as e:
+        print(e)
+        return Response({
+            'response_code': 400,
+            'status': 'error',
+            'message':"Request not Submitted",
+        })
+    
 """Rescheduling an appointment"""
 @api_view(['POST'])
 def appointment_schedule_view(request):
@@ -4346,7 +4888,7 @@ def appointment_schedule_view(request):
             count = appointment_id_schedule.reschedule_count
             print(appointment_id_schedule.reschedule_count)
         except Exception as e:
-            # print("Exception", e)
+            print("Exception", e)
             appointment_id_schedule = None
             count = 0
         if appointment_id_schedule:
@@ -4425,7 +4967,7 @@ def appointment_schedule_view(request):
         if request.data['appointment_status'] == 4:
             print("email-cust")
             try:
-                subject = 'Order Rescheduled'
+                subject = 'Appointment Rescheduled'
                 html_message = render_to_string('order_reschedule.html', {'appointment_date': rescheduled_date,
                                                                         'appointment_time': time_slot, 'doctor_flag': 0,
                                                                         'email': get_user_mail(
@@ -4439,21 +4981,36 @@ def appointment_schedule_view(request):
                     sms_service.send_message(
                         "Hi There, Your Appointment #%s has been rescheduled to:%s,%s Please refer mail for more details"
                         % (appointment_id, rescheduled_date, time_slot),
-                        "+91" + str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
+                        str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
                 except Exception as e:
                     print(e)
                     print("MESSAGE SENT ERROR")
 
                 mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
+            
+                AppointmentHeader.objects.filter(appointment_id=appointment_id).update(appointment_status = 1)
             except Exception as e:
                 print(e)
                 print("Email Sending error")
+                try:
+                    user_id = request.data['user_id']
+                    appointment_id = request.data.get('appointment_id', None)
+
+                    user_name = get_users_name(user_id)
+
+                    Notification.objects.create(
+                        user_id=user_id,
+                        description=f'Appointment Rescheduled Email has not been sent to user {user_name} for the appointment {str(appointment_id)}, because of {str(e)}'
+                    )
+                except Exception as e:
+                    print(f"Error creating notification: {str(e)}")
+
         print("request.data['appointment_status'] = ",request.data['appointment_status'])
         if request.data['appointment_status'] == 7 or request.data['appointment_status'] == 1:
             print("email-doc")
             subject=""
             try:
-                subject = 'Order Rescheduled'
+                subject = 'Appointment Rescheduled'
                 html_message = render_to_string(
                     'order_reschedule.html', {'appointment_date': rescheduled_date,
                                             'appointment_time': time_slot, 'doctor_flag': 1,
@@ -4466,41 +5023,50 @@ def appointment_schedule_view(request):
                 #to = "gopika197.en@gmail.com"
                 mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
             
-                sms_service.send_message(
-                    "Hi There, Your Appointment #%s has been rescheduled to:%s,%s Please refer mail for more details"
-                    % (appointment_id, rescheduled_date, time_slot),
-                    "+91" + str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
             except Exception as e:
                 print(e)
                 print("MESSAGE SENT ERROR")
-                
+                Notification.objects.create(user_id = doctor_id, description = f'Appointment Rescheduled Email has not been send to doctor {get_users_name(doctor_id)} for the appointment {str(appointment_id)}, because of {str(e)}')
+            
             try:
-                subject = 'Order Rescheduled'
+                sms_service.send_message(
+                    "Hi There, Your Appointment #%s has been rescheduled to:%s,%s Please refer mail for more details"
+                    % (appointment_id, rescheduled_date, time_slot),
+                    str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
+            except Exception as e:
+                print(e)
+                Notification.objects.create(user_id = request.data['user_id'], description = f"Appointment Rescheduled message has not been send to user " f"{get_users_name(request.data['user_id'])}'s Phone Number for the appointment {str(appointment_id)}, because of {str(e)}")
+
+            try:
+                subject = 'Appointment Rescheduled'
                 html_message = render_to_string('order_reschedule.html', {'appointment_date': rescheduled_date,
                                                                         'appointment_time': time_slot, 'doctor_flag': 0,
                                                                         'email': get_users_name(AppointmentHeader.objects.get(
                                                                                 appointment_id=appointment_id).user_id)})
-                                                                            # get_user_mail(
-                                                                            # AppointmentHeader.objects.get(
-                                                                            #     appointment_id=appointment_id).user_id)})
                 plain_message = strip_tags(html_message)
                 from_email = 'wecare@inticure.com'
                 to = get_users_email(request.data['user_id'])
                 cc = "nextbighealthcare@inticure.com"
-                #to = "gopika197.en@gmail.com"
-                # try:
-                #     sms_service.send_message(
-                #         "Hi There, Your Appointment #%s has been rescheduled to:%s,%s Please refer mail for more details"
-                #         % (appointment_id, rescheduled_date, time_slot),
-                #         "+91" + str(CustomerProfile.objects.get(user_id=request.data['user_id']).mobile_number))
-                # except Exception as e:
-                #     print(e)
-                #     print("MESSAGE SENT ERROR")
+            
                 cc ='nextbighealthcare@inticure.com'
                 mail.send_mail(subject, plain_message, from_email, [to],[cc], html_message=html_message)
             except Exception as e:
                 print(e)
                 print("Email Sending error")
+                try:
+                    user_id = request.data['user_id']
+                    appointment_id = request.data.get('appointment_id', None)
+
+                    user_name = get_users_name(user_id)
+
+                    Notification.objects.create(
+                        user_id=user_id,
+                        description=f'Appointment Rescheduled Email has not been sent to user {user_name} for the appointment {str(appointment_id)}, because of {str(e)}'
+                    )
+
+                except Exception as e:
+                    print(f"Error creating notification: {str(e)}")
+
         try:
             specialization=DoctorProfiles.objects.get(user_id=doctor_id).specialization
         except:

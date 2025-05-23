@@ -161,6 +161,13 @@ def customer_crud_view(request):
           age=today.year - born.year - ((today.month, today.day) < (born.month, born.day))
           print(today,age,"AGE CALCULATED")
           CustomerProfile.objects.filter(user_id=user_id).update(date_of_birth=dob,age=age)
+        
+        if 'confirmationemail' in request.data and request.data['confirmationemail'] != "":
+           CustomerProfile.objects.filter(user_id=user_id).update(confirmation_email=request.data['confirmationemail'])
+
+        if 'confirmation_phone_number' in request.data and request.data['confirmation_phone_number'] != "":
+           CustomerProfile.objects.filter(user_id=user_id).update(whatsapp_contact=request.data['confirmation_phone_number'])
+           
         return Response(
                 {'response_code': 200,
                  'status': 'Ok',
@@ -330,35 +337,56 @@ def create_checkout_session(request):
       success_url = success_url.replace("http://", "https://")
       cancel_url = cancel_url.replace("http://", "https://")
     name = "Appointment"
-    shipping_info = None
+    currency = request_data['currency'].lower()
+    if currency in ['bhd', 'jod', 'kwd', 'omr']:
+        unit_amount = int(request_data['amount'] * 1000)
+    else:
+        unit_amount = int(request_data['amount'] * 100)
+
     if request_data['currency'] == 'INR':
         shipping_address_collection = {
             'allowed_countries': ['IN']
         }
-    checkout_session = stripe.checkout.Session.create(
-    payment_method_types=['card'],
-    line_items=[
-            {
-                'price_data': {
-                    'currency': request_data['currency'],
-                    'product_data': {
-                        'name': name,
-                    },
-                    'unit_amount': request_data['amount']*100,
-                },
-                'quantity': 1,
-            }
-        ],
-    customer=request_data['stripe_customer_token_id'],
-    mode='payment',
-    success_url=success_url,
-    cancel_url=cancel_url,
-    shipping_address_collection=shipping_info,  # Include shipping info only for Indian customers
-    billing_address_collection='required' if request_data['currency'] == 'INR' else 'auto',  # Required for India
+    customer_id = request_data.get('stripe_customer_token_id')
+    if not customer_id or not customer_id.startswith('cus_'):
+        return JsonResponse({'error': 'Invalid Stripe customer token ID'}, status=400)
+    shipping_info = None
 
-    )
-    print("checkout_session",checkout_session.id)
-    return JsonResponse({'sessionId': checkout_session.id})
+    checkout_session_params = {
+      'payment_method_types': ['card'],
+      'line_items': [
+          {
+              'price_data': {
+                  'currency': request_data['currency'],
+                  'product_data': {'name': name},
+                  'unit_amount': unit_amount,
+              },
+              'quantity': 1,
+          }
+      ],
+      'customer': request_data['stripe_customer_token_id'],
+      'mode': 'payment',
+      'success_url': success_url,
+      'cancel_url': cancel_url,
+      'billing_address_collection': 'required' if request_data['currency'] == 'INR' else 'auto',
+    }
+    if shipping_info:  # Add shipping info only if it's not None
+      checkout_session_params['shipping_address_collection'] = shipping_info
+
+    try:
+      checkout_session = stripe.checkout.Session.create(**checkout_session_params)
+      print("checkout_session", checkout_session.id)
+      return JsonResponse({'sessionId': checkout_session.id})
+    except stripe.error.InvalidRequestError as e:
+      print(f"Invalid request error: {e.user_message}")
+      return JsonResponse({'error': e.user_message}, status=400)
+    except stripe.error.StripeError as e:
+      print(f"Stripe error: {e.user_message}")
+      return JsonResponse({'error': e.user_message}, status=500)
+    except Exception as e:
+      print(f"Unexpected error: {str(e)}")
+      return JsonResponse({'error': 'An unexpected error occurred'}, status=500)
+
 
 def checkout_preprocess(user_id,amount,temp_id,currency,appointment_flag):
     customer_email = User.objects.get(id=user_id).email

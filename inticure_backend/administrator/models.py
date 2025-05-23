@@ -89,3 +89,9 @@ class CouponRedeemLog(models.Model):
     user_id=models.IntegerField(null=True)
     coupon_id=models.IntegerField(null=True)
     
+class Notification(models.Model):
+    user_id = models.IntegerField(null=True)
+    on_time=models.TimeField(auto_now=True,null=True)
+    on_date = models.DateField(auto_now=True)
+    description = models.CharField(max_length=400, null=True)
+    did_open = models.BooleanField(default=False)

@@ -157,7 +157,7 @@
 		</div>
 		<!-- Header -->
 		<div class="header">
-			<p>Order Rescheduled</p>
+			<p>Appointment Rescheduled</p>
 			<img src="https://api.inticure.online/media/doctor_img.png" alt="Image" class="image" style="height:100%">
 		</div>
 
@@ -170,19 +170,26 @@
 			<p>Your rescheduled appointment date: {{appointment_date}} and appointment time: {{appointment_time}}  With DR. {{doctor_name}} {{specialization}}</p>
 			<p>Please click the link below at the time of your appointment for your consultation</p>
 			{{meet_link}}
-			<p>You can also access this link and see all your current and upcoming appointments by logging in to the inticure website. (www.inticure.com/login)</p>
-			<p>If you can’t make it to your appointment, you can <a href="https://customers.inticure.online/consultations" class="email-btn">Reschedule</a> or <a href="https://customers.inticure.online/consultations" class="email-btn">Cancel</a> <p/>
+			<p>You can also access this <a href="https://customers.inticure.online/">link</a> and see all your current and upcoming appointments.</p>
+			<p>If you can’t make it to your appointment, you can <a href="https://customers.inticure.online/consultations" class="email-btn">Reschedule</a> or <a href="https://customers.inticure.online/consultations" class="email-btn">Cancel</a> </p>
 			<p>Your privacy and safety is our number one priority. ALWAYS!</p>
 			<p class="mt-4">---- <br>Regards<br>Inticure Care</p>
       		{% endif %}
       		{%if doctor_flag == 1%}
 			  <p><strong>Hi {{name}}</strong>,</p>
-			  <p>This mail is regarding of an order reschedule update</p>
+			  <p>This mail is regarding of an Appointment reschedule update</p>
 			  <p>Appointment {{appointment_id}} has been rescheduled to another available date</p>
 			  <p>rescheduled appointment date: {{appointment_date}} and appointment time: {{appointment_time}}  Please confirm your availabliity by logging in to your account</p>
 			  <!-- <p>Thank you for using Inticure, Hope you'll enjoy the experience, we're here if you have any questions, drop us a line at info@inticure.com anytime. </p> -->
 			  <p class="mt-4">---- <br>Regards<br>Inticure Care</p>
       		{% endif %}
+		<br>
+		<br>
+		<br>
+		<p>Please refer our Terms and Conditions <a href="https://inticure.online/faq/">click</a></p>
+		<p>Please refer our Privacy Policy <a href="https://inticure.online/faq/">click</a></p>
+		<p>Please refer our Cancellation and Refund Policy <a href="https://inticure.online/faq/">click</a></p>
+		<br>
 		</div>
 		<!-- Footer -->
 		<div class="footer">

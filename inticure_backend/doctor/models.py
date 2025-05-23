@@ -31,8 +31,18 @@ class DoctorProfiles(models.Model):
     profile_pic=models.TextField(null=True)
     profile_file_name=models.TextField(null=True)
     profile_file_size=models.TextField(null=True)
-    doctor_bio=models.CharField(null=True,max_length=500)
+    doctor_bio=models.CharField(null=True,max_length=1000)
     is_blocked = models.BooleanField(default = False)
+    registration_year = models.CharField(max_length=100, default='0000',null=True)
+
+class RescheduleRequest(models.Model):
+    doctor_id = models.IntegerField()
+    date = models.DateField(auto_now=True)
+
+class UnitPrice(models.Model):
+    doctor_id = models.IntegerField()
+    price_for_single = models.CharField(max_length=20)
+    price_for_couple = models.CharField(max_length=20)
     
 class Obeservations(models.Model):
     appointment_id=models.BigIntegerField()
@@ -40,6 +50,8 @@ class Obeservations(models.Model):
     uploaded_time=models.TimeField(auto_now=True)
     uploaded_date=models.DateField(auto_now=True)
     observe=models.TextField()
+    user_id = models.IntegerField(null=True)
+
 class AppointmentReshedule(models.Model):
     appointment_id=models.BigIntegerField()
     user_id=models.BigIntegerField()
@@ -76,6 +88,7 @@ class PrescriptionsDetail(models.Model):
     prescriptions_text=models.TextField(null=True)
     tests_to_be_done=models.TextField(null=True)
     prescription_validation=models.CharField(max_length=30,null=True)
+    user_id = models.IntegerField(null=True)
 class Medications(models.Model):
     medication_id=models.BigAutoField(primary_key=True)
     prescription_id=models.BigIntegerField()
@@ -108,7 +121,7 @@ class CommonFileUploader(models.Model):
 """Model for Timeslots"""
 class Timeslots(models.Model):
     time_slots=models.CharField(max_length=30)
-    duration = models.IntegerField()
+    duration = models.IntegerField(null=True)
 """Senior doc engagement"""
 class SrDoctorEngagement(models.Model):
     doc_id=models.BigAutoField(primary_key=True)

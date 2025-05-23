@@ -166,20 +166,27 @@
 		<div class="email-body">
       		{% if doctor_flag == 0 %}
 			  <p><strong>Hi {{email}}</strong>,</p>
-			  <p>This mail is regarding a recent order placed on Inticure </p>
-			  <p>We are sorry to inform you that the order #{{appointment_id}} has been transfered to another doctor due to doctor inconvenience </p>
+			  <p>This mail is regarding a recent Appointment booked on Inticure </p>
+			  <p>We are sorry to inform you that the Appointment #{{appointment_id}} has been transfered to another doctor due to doctor inconvenience </p>
 			  <p>Your transfered doctor is {{doctor}} and he will take over the appointment</p>
-			  <p>Thank you, for using Inticure, Hope you'll enjoy the experience, we're here if you have any questions, drop us a line at info@inticure.com anytime. </p>
+			  <p>Thank you, for using Inticure, Hope you'll enjoy the experience, we're here if you have any questions, drop us a line at wecare@inticure.com anytime. </p>
 			  <p class="mt-4">---- <br>Regards<br>Inticure Care</p>
       		{% endif %}
       		{% if doctor_flag == 1 %}
 			  <p><strong>Hi {{email}}</strong>,</p>
-			  <p>This mail is regarding an order transfer update </p>
-			  <p>an order #{{appointment_id}} has been transfered to you due to doctor inconvenience </p>
+			  <p>This mail is regarding an Appointment transfer update </p>
+			  <p>an Appointment #{{appointment_id}} has been transfered to you due to doctor inconvenience </p>
 			  <p>requesting you to take over the appointment</p>
 			  <!-- <p>Thank you, for using Inticure, Hope you'll enjoy the experience, we're here if you have any questions, drop us a line at info@inticure.com anytime. </p> -->
 			  <p class="mt-4">---- <br>Regards<br>Inticure Care</p>
       		{% endif %}
+		<br>
+		<br>
+		<br>
+		<p>Please refer our Terms and Conditions <a href="https://inticure.online/faq/">click</a></p>
+		<p>Please refer our Privacy Policy <a href="https://inticure.online/faq/">click</a></p>
+		<p>Please refer our Cancellation and Refund Policy <a href="https://inticure.online/faq/">click</a></p>
+		<br>
 		</div>
 		<!-- Footer -->
 		<div class="footer">

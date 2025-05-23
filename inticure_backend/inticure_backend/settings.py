@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-h4q4vc2$!z^0z5qo^fi3q25b(f$5s-r*bi+fzw108-dymj0(je'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 
 ALLOWED_HOSTS =['*']
@@ -109,7 +109,7 @@ WSGI_APPLICATION = 'inticure_backend.wsgi.application'
 DATABASES = {
     # 'default': {
     #     'ENGINE': 'django.db.backends.mysql',
-    #     'NAME': 'inticure',
+    #     'NAME': 'inticure2',
     #     'USER': 'root',
     #     'PASSWORD': 'PHW#84#jeor',
     #     'HOST': 'localhost',
@@ -118,13 +118,13 @@ DATABASES = {
     
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'inticure',
-        'USER': 'inticure',
+        'NAME': 'inticure2',
+        'USER': 'root',
         'PASSWORD':'inticure',
         'HOST': 'mysql',
         'PORT': '3306',
     }
-    
+   
 }
 
 
